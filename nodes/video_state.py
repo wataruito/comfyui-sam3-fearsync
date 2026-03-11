@@ -269,6 +269,13 @@ class SAM3VideoState:
             ]
         }
 
+    @staticmethod
+    def _deep_to_tuple(obj):
+        """Recursively convert lists to tuples (JSON deserializes tuples as lists)."""
+        if isinstance(obj, list):
+            return tuple(SAM3VideoState._deep_to_tuple(item) for item in obj)
+        return obj
+
     @classmethod
     def from_dict(cls, d: Dict[str, Any]) -> 'SAM3VideoState':
         """
@@ -285,7 +292,7 @@ class SAM3VideoState:
                 frame_idx=p["frame_idx"],
                 prompt_type=p["prompt_type"],
                 obj_id=p["obj_id"],
-                data=tuple(p["data"]) if isinstance(p["data"], list) else p["data"]
+                data=cls._deep_to_tuple(p["data"])
             )
             for p in d.get("prompts", [])
         )

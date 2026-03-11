@@ -228,7 +228,7 @@ class SAM3VideoSegmentation(io.ComfyNode):
         # Check if we have cached result
         if cache_key in SAM3VideoSegmentation._cache:
             cached = SAM3VideoSegmentation._cache[cache_key]
-            log.info(f"CACHE HIT - returning cached video_state for key={cache_key[:8]}, session={cached.session_uuid[:8]}")
+            log.info(f"CACHE HIT - returning cached video_state for key={cache_key[:8]}, session={cached['session_uuid'][:8]}")
             return io.NodeOutput(cached)
 
         log.info(f"CACHE MISS - computing new video_state for key={cache_key[:8]}")
@@ -355,10 +355,11 @@ class SAM3VideoSegmentation(io.ComfyNode):
         log.info(f"Total prompts: {len(video_state.prompts)}")
         print_mem("After video segmentation")
 
-        # Cache the result
-        SAM3VideoSegmentation._cache[cache_key] = video_state
+        # Cache and return as dict (JSON-safe for IPC)
+        video_state_dict = video_state.to_dict()
+        SAM3VideoSegmentation._cache[cache_key] = video_state_dict
 
-        return io.NodeOutput(video_state)
+        return io.NodeOutput(video_state_dict)
 
 
 # =============================================================================
@@ -381,8 +382,8 @@ class SAM3Propagate(io.ComfyNode):
             display_name="SAM3 Propagate",
             category="SAM3/video",
             inputs=[
-                io.Custom("SAM3_MODEL").Input("sam3_model",
-                                              tooltip="SAM3 model (from LoadSAM3Model)"),
+                io.Custom("SAM3_MODEL_CONFIG").Input("sam3_model_config",
+                                              tooltip="SAM3 model config (from LoadSAM3Model)"),
                 io.Custom("SAM3_VIDEO_STATE").Input("video_state",
                                                     tooltip="Video state with prompts"),
                 io.Int.Input("start_frame", default=0, min=0, optional=True,
@@ -406,19 +407,27 @@ class SAM3Propagate(io.ComfyNode):
         start_frame = kwargs.get("start_frame", 0)
         end_frame = kwargs.get("end_frame", -1)
         direction = kwargs.get("direction", "forward")
-        # Use object identity for caching - if upstream node is cached,
-        # it returns the same object, so id() will match
-        # This is more reliable than hashing content since video_state is immutable
-        result = (id(video_state), start_frame, end_frame, direction)
-        log.info(f"fingerprint_inputs SAM3Propagate: video_state id={id(video_state)}, session={video_state.session_uuid if video_state else None}")
+        # video_state is a dict after IPC deserialization, use content-based key
+        session_uuid = video_state["session_uuid"] if video_state else None
+        prompts_hash = hash(str(video_state.get("prompts", []))) if video_state else None
+        result = (session_uuid, prompts_hash, start_frame, end_frame, direction)
+        log.info(f"fingerprint_inputs SAM3Propagate: session={session_uuid}")
         log.info(f"fingerprint_inputs SAM3Propagate: returning {result}")
         return result
 
     @classmethod
-    def execute(cls, sam3_model, video_state, start_frame=0, end_frame=-1, direction="forward"):
+    def execute(cls, sam3_model_config, video_state, start_frame=0, end_frame=-1, direction="forward"):
         """Run propagation using reconstructed inference state."""
-        # Create cache key using video_state object id (since it's immutable and cached upstream)
-        cache_key = (id(video_state), start_frame, end_frame, direction)
+        from ._model_cache import get_or_build_model
+
+        sam3_model = get_or_build_model(sam3_model_config)
+
+        # Deserialize video_state from dict (IPC boundary)
+        video_state = SAM3VideoState.from_dict(video_state)
+
+        # Content-based cache key (id() doesn't work across IPC deserialization)
+        cache_key = (video_state.session_uuid, str(video_state.prompts),
+                     start_frame, end_frame, direction)
 
         # Check if we have cached result
         if cache_key in SAM3Propagate._cache:
@@ -539,10 +548,15 @@ class SAM3Propagate(io.ComfyNode):
         gc.collect()
         comfy.model_management.soft_empty_cache()
 
-        # Cache the result
-        SAM3Propagate._cache[cache_key] = (masks_dict, scores_dict, video_state)
+        # Convert int keys to string for JSON-safe IPC (comfy-env handles tensors via shared memory)
+        masks_out = {str(k): v for k, v in masks_dict.items()}
+        scores_out = {str(k): v for k, v in scores_dict.items()}
+        video_state_dict = video_state.to_dict()
 
-        return io.NodeOutput(masks_dict, scores_dict, video_state)
+        # Cache the result
+        SAM3Propagate._cache[cache_key] = (masks_out, scores_out, video_state_dict)
+
+        return io.NodeOutput(masks_out, scores_out, video_state_dict)
 
 
 # =============================================================================
@@ -593,10 +607,10 @@ class SAM3VideoOutput(io.ComfyNode):
         scores = kwargs.get("scores")
         obj_id = kwargs.get("obj_id", -1)
         plot_all_masks = kwargs.get("plot_all_masks", True)
-        # Always re-run this node when params change, but this is cheap
-        # The key is that changing these here does NOT invalidate upstream cache
-        # ComfyUI caches based on input values - masks/video_state don't change
-        return (id(masks), video_state.session_uuid, id(scores), obj_id, plot_all_masks)
+        # Content-based keys (id() doesn't work across IPC deserialization)
+        session_uuid = video_state["session_uuid"] if video_state else None
+        masks_hash = hash(frozenset(masks.keys())) if masks else None
+        return (masks_hash, session_uuid, obj_id, plot_all_masks)
 
     @classmethod
     def execute(cls, masks, video_state, scores=None, obj_id=-1, plot_all_masks=True):
@@ -608,8 +622,17 @@ class SAM3VideoOutput(io.ComfyNode):
         from PIL import Image
         import os
 
-        # Create cache key
-        cache_key = (id(masks), video_state.session_uuid, id(scores), obj_id, plot_all_masks)
+        # Deserialize video_state from dict (IPC boundary)
+        video_state = SAM3VideoState.from_dict(video_state)
+
+        # Convert string keys back to int (JSON serialization converts int keys to strings)
+        if masks:
+            masks = {int(k): v for k, v in masks.items()}
+        if scores:
+            scores = {int(k): v for k, v in scores.items()}
+
+        # Content-based cache key
+        cache_key = (video_state.session_uuid, len(masks) if masks else 0, obj_id, plot_all_masks)
 
         # Check if we have cached result
         if cache_key in SAM3VideoOutput._cache:

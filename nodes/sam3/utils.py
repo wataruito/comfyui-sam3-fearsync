@@ -1489,10 +1489,11 @@ class Sam3Processor:
         out_masks = outputs["pred_masks"]
 
         # Debug: print raw output shapes and stats
-        log.debug(f"[DEBUG] forward_grounding output keys: {list(outputs.keys())}")
-        log.debug(f"[DEBUG] pred_logits shape: {out_logits.shape}, min: {out_logits.min():.4f}, max: {out_logits.max():.4f}")
-        log.debug(f"[DEBUG] pred_boxes shape: {out_bbox.shape}")
-        log.debug(f"[DEBUG] pred_masks shape: {out_masks.shape}")
+        import sys
+        print(f"[SAM3-DBG] forward_grounding output keys: {list(outputs.keys())}", file=sys.stderr)
+        print(f"[SAM3-DBG] pred_logits shape: {out_logits.shape}, min: {out_logits.min():.4f}, max: {out_logits.max():.4f}", file=sys.stderr)
+        print(f"[SAM3-DBG] pred_boxes shape: {out_bbox.shape}", file=sys.stderr)
+        print(f"[SAM3-DBG] pred_masks shape: {out_masks.shape}", file=sys.stderr)
 
         # pred_logits already have presence baked in via supervise_joint_box_scores:
         #   pred_logits = inverse_sigmoid(sigmoid(class_raw) * sigmoid(presence))
@@ -1507,12 +1508,13 @@ class Sam3Processor:
         log.debug(f"[DEBUG] out_probs (joint_box_scores, no double presence): "
                  f"min={out_probs.min():.4f}, max={out_probs.max():.4f}")
 
-        log.debug(f"[DEBUG] confidence_threshold: {self.confidence_threshold}")
-        log.debug(f"[DEBUG] detections above threshold: {(out_probs > self.confidence_threshold).sum().item()} / {out_probs.numel()}")
+        print(f"[SAM3-DBG] confidence_threshold: {self.confidence_threshold}", file=sys.stderr)
+        print(f"[SAM3-DBG] out_probs shape: {out_probs.shape}, min: {out_probs.min():.4f}, max: {out_probs.max():.4f}", file=sys.stderr)
+        print(f"[SAM3-DBG] detections above threshold: {(out_probs > self.confidence_threshold).sum().item()} / {out_probs.numel()}", file=sys.stderr)
 
         # Top-10 probabilities for debugging
         topk_vals, topk_idxs = out_probs.flatten().topk(min(10, out_probs.numel()))
-        log.debug(f"[DEBUG] top-10 probs: {[f'{v:.4f}' for v in topk_vals.tolist()]}")
+        print(f"[SAM3-DBG] top-10 probs: {[f'{v:.4f}' for v in topk_vals.tolist()]}", file=sys.stderr)
 
         keep = out_probs > self.confidence_threshold
         out_probs = out_probs[keep]

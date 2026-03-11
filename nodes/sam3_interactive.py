@@ -555,8 +555,8 @@ class SAM3InteractiveCollector(io.ComfyNode):
             category="SAM3",
             is_output_node=True,
             inputs=[
-                io.Custom("SAM3_MODEL").Input("sam3_model",
-                                              tooltip="SAM3 model from LoadSAM3Model node."),
+                io.Custom("SAM3_MODEL_CONFIG").Input("sam3_model_config",
+                                              tooltip="SAM3 model config from LoadSAM3Model node."),
                 io.Image.Input("image",
                                tooltip="Image to segment. Draw points/boxes on the canvas, then click Run for a live mask preview."),
                 io.String.Input("multi_prompts_store", multiline=False, default="[]"),
@@ -665,16 +665,18 @@ class SAM3InteractiveCollector(io.ComfyNode):
     # -- main execution (workflow queue) -----------------------------------
 
     @classmethod
-    def execute(cls, sam3_model, image, multi_prompts_store, unique_id=None):
+    def execute(cls, sam3_model_config, image, multi_prompts_store, unique_id=None):
+        from ._model_cache import get_or_build_model
         import comfy.model_management
+
+        sam3_model = get_or_build_model(sam3_model_config)
         comfy.model_management.load_models_gpu([sam3_model])
         pil_image = comfy_image_to_pil(image)
         img_w, img_h = pil_image.size
 
         processor = sam3_model.processor
-        model = processor.model  # The actual nn.Module with predict_inst
+        model = processor.model
 
-        # Sync processor device after model load
         if hasattr(processor, 'sync_device_with_model'):
             processor.sync_device_with_model()
 

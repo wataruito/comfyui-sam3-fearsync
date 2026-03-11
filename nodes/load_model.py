@@ -1,5 +1,10 @@
 """
-LoadSAM3Model node - Loads SAM3 model with ComfyUI memory management integration
+LoadSAM3Model node - Returns model config for subprocess-based loading.
+
+Actual model construction happens inside consumer nodes (in the isolation
+env subprocess), following the Trellis2 pattern.  This node resolves
+precision, downloads the checkpoint if needed, and returns a JSON-safe
+config dict.
 """
 import logging
 from pathlib import Path
@@ -26,7 +31,7 @@ except ImportError:
 
 class LoadSAM3Model(io.ComfyNode):
     """
-    Node to load SAM3 model with ComfyUI memory management integration.
+    Node to load SAM3 model configuration.
     Auto-downloads the model from HuggingFace if not found.
     """
 
@@ -47,21 +52,15 @@ class LoadSAM3Model(io.ComfyNode):
                                  tooltip="Enable torch.compile for faster inference. Model loading takes longer (pre-compiles all code paths), but inference is significantly faster on every run."),
             ],
             outputs=[
-                io.Custom("SAM3_MODEL").Output(display_name="sam3_model"),
+                io.Custom("SAM3_MODEL_CONFIG").Output(display_name="sam3_model_config"),
             ],
         )
 
     @classmethod
     def execute(cls, precision="auto", compile=False):
-        from .sam3_model_patcher import SAM3UnifiedModel
-        from .sam3.predictor import Sam3VideoPredictor
-        from .sam3.utils import Sam3Processor
-        from .sam3 import build_sam3_video_model, _load_checkpoint_file, remap_video_checkpoint
         import comfy.model_management
-        import comfy.utils
 
         load_device = comfy.model_management.get_torch_device()
-        offload_device = comfy.model_management.unet_offload_device()
 
         # Fixed checkpoint path
         checkpoint_path = Path(comfy_base_path) / cls.MODEL_DIR / cls.MODEL_FILENAME
@@ -74,7 +73,7 @@ class LoadSAM3Model(io.ComfyNode):
         # BPE path for tokenizer
         bpe_path = str(Path(__file__).parent / "sam3" / "bpe_simple_vocab_16e6.txt.gz")
 
-        # Resolve dtype before model creation
+        # Resolve dtype
         if precision == "auto":
             if comfy.model_management.should_use_bf16(load_device):
                 dtype = torch.bfloat16
@@ -82,128 +81,21 @@ class LoadSAM3Model(io.ComfyNode):
                 dtype = torch.float16
             else:
                 dtype = torch.float32
-        elif precision == "bf16":
-            dtype = torch.bfloat16
-        elif precision == "fp16":
-            dtype = torch.float16
         else:
-            dtype = torch.float32
+            dtype = {"bf16": torch.bfloat16, "fp16": torch.float16, "fp32": torch.float32}[precision]
 
-        log.info(f"Loading model from: {checkpoint_path}")
-        if compile:
-            log.info("torch.compile enabled")
+        # Store dtype as string for JSON-safe IPC across isolation boundary
+        dtype_str = {torch.bfloat16: "bf16", torch.float16: "fp16", torch.float32: "fp32"}[dtype]
+        log.info(f"Resolved precision: {precision} -> {dtype_str}")
 
-        # ---- Meta-device construction (avoids 2x RAM) ----
-        # 1. Build the model graph on the meta device (zero memory).
-        log.info("Constructing model on meta device (zero memory)...")
-        with torch.device("meta"):
-            model = build_sam3_video_model(
-                checkpoint_path=None,
-                load_from_HF=False,
-                bpe_path=bpe_path,
-                enable_inst_interactivity=True,
-                compile=compile,
-                skip_checkpoint=True,
-            )
-
-        # 2. Load checkpoint and remap keys.
-        log.info("Loading checkpoint into meta model with assign=True...")
-        ckpt = _load_checkpoint_file(str(checkpoint_path))
-        remapped_ckpt = remap_video_checkpoint(ckpt, enable_inst_interactivity=True)
-        del ckpt  # free raw checkpoint memory immediately
-
-        # 3. Load weights directly into the model (assign=True replaces meta
-        #    tensors with real tensors without allocating a second copy).
-        missing_keys, unexpected_keys = model.load_state_dict(
-            remapped_ckpt, strict=False, assign=True,
-        )
-        del remapped_ckpt
-        if missing_keys:
-            log.info(f"Missing keys: {len(missing_keys)}")
-        if unexpected_keys:
-            log.info(f"Unexpected keys: {len(unexpected_keys)}")
-
-        # 4. Fix any leftover meta-device buffers (e.g. registered buffers
-        #    that were not in the checkpoint, like zero-init masks).
-        for name, buf in model.named_buffers():
-            if buf.device.type == "meta":
-                parts = name.split(".")
-                parent = model
-                for p in parts[:-1]:
-                    parent = getattr(parent, p)
-                parent._buffers[parts[-1]] = torch.zeros_like(buf, device="cpu")
-
-        model.eval()
-
-        # Wrap in predictor (pass the pre-built model so it skips construction).
-        video_predictor = Sam3VideoPredictor(
-            bpe_path=bpe_path,
-            enable_inst_interactivity=True,
-            compile=compile,
-            model=model,
-        )
-
-        # Tell sam3_attention() what half-precision dtype to target.
-        # This enables centralized dtype normalization for every attention call
-        # site -- including self-attention on fp32 token embeddings and
-        # cross-attention after bf16+fp32 positional-encoding type promotion.
-        from .sam3.attention import set_sam3_dtype
-        set_sam3_dtype(dtype if dtype != torch.float32 else None)
-
-        # Selective weight casting: cast only parameters (not buffers) to target
-        # dtype for VRAM savings and half-precision attention.
-        #
-        # Buffers like freqs_cis (complex RoPE tensor in the ViT backbone) must
-        # stay in their original dtype -- .to(bf16) on a complex tensor discards
-        # the imaginary part, destroying position information.
-        #
-        # inst_interactive_predictor must also be cast: its no_mem_embed
-        # (nn.Parameter) is added directly to bf16 vision features in
-        # predict_inst(), causing fp32 type promotion. comfy.ops.manual_cast
-        # can't intercept plain + operations -- it only casts linear layer
-        # weights. Keeping inst_interactive_predictor in fp32 makes all Q/K/V
-        # tensors fp32, causing flash attention to fall back to SDPA.
-        if dtype != torch.float32:
-            import os
-            detector = video_predictor.model.detector
-            for param in detector.backbone.parameters():
-                param.data = param.data.to(dtype=dtype)
-            if detector.inst_interactive_predictor is not None:
-                for param in detector.inst_interactive_predictor.parameters():
-                    param.data = param.data.to(dtype=dtype)
-            if os.environ.get("DEBUG_COMFYUI_SAM3", "").lower() in ("1", "true", "yes"):
-                log.warning(
-                    "LoadSAM3Model: backbone dtype=%s, inst_interactive_predictor dtype=%s",
-                    next(detector.backbone.parameters()).dtype,
-                    next(detector.inst_interactive_predictor.parameters()).dtype
-                    if detector.inst_interactive_predictor is not None else "N/A",
-                )
-
-        # Run compilation warmup to pre-compile all code paths
-        if compile:
-            log.info("Running compilation warmup (this may take a few minutes on first run)...")
-            video_predictor.model.warm_up_compilation()
-            log.info("Compilation warmup complete")
-
-        detector = video_predictor.model.detector
-        processor = Sam3Processor(
-            model=detector,
-            resolution=1008,
-            device=str(load_device),
-            confidence_threshold=0.2
-        )
-
-        unified_model = SAM3UnifiedModel(
-            video_predictor=video_predictor,
-            processor=processor,
-            load_device=load_device,
-            offload_device=offload_device,
-            dtype=dtype,
-        )
-
-        log.info(f"Model ready ({unified_model.model_size() / 1024 / 1024:.1f} MB)")
-
-        return io.NodeOutput(unified_model)
+        config = {
+            "checkpoint_path": str(checkpoint_path),
+            "bpe_path": bpe_path,
+            "precision": precision,
+            "dtype": dtype_str,
+            "compile": compile,
+        }
+        return io.NodeOutput(config)
 
     @staticmethod
     def _download_from_huggingface():

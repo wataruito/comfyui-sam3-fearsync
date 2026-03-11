@@ -51,8 +51,8 @@ class SAM3Grounding(io.ComfyNode):
             display_name="SAM3 Text Segmentation",
             category="SAM3/Grounding",
             inputs=[
-                io.Custom("SAM3_MODEL").Input("sam3_model",
-                                              tooltip="SAM3 model loaded from LoadSAM3Model node"),
+                io.Custom("SAM3_MODEL_CONFIG").Input("sam3_model_config",
+                                              tooltip="SAM3 model config from LoadSAM3Model node"),
                 io.Image.Input("image",
                                tooltip="Input image to perform segmentation on"),
                 io.Float.Input("confidence_threshold", default=0.2, min=0.0, max=1.0, step=0.01,
@@ -75,33 +75,27 @@ class SAM3Grounding(io.ComfyNode):
         )
 
     @classmethod
-    def execute(cls, sam3_model, image, confidence_threshold=0.2,
+    def execute(cls, sam3_model_config, image, confidence_threshold=0.2,
                 text_prompt="", positive_boxes=None, negative_boxes=None,
                 max_detections=-1):
         """
         Perform SAM3 grounding with text prompts
-
-        Args:
-            sam3_model: SAM3ModelPatcher from LoadSAM3Model node
-            image: ComfyUI image tensor [B, H, W, C]
-            confidence_threshold: Minimum confidence score for detections
-            text_prompt: Text description of objects to find
-            positive_boxes: Optional boxes to focus detection on
-            negative_boxes: Optional boxes to exclude from detection
-            max_detections: Maximum number of detections to return
-
-        Returns:
-            Tuple of (masks, visualization, boxes_json, scores_json)
         """
-        # Use ComfyUI's model management to load model to GPU
+        from ._model_cache import get_or_build_model
         import comfy.model_management
+
+        import sys
+        sam3_model = get_or_build_model(sam3_model_config)
         comfy.model_management.load_models_gpu([sam3_model])
 
-        # Access processor from the patcher
         processor = sam3_model.processor
         device = sam3_model.current_device
 
-        # Sync processor device after model load (handles offload/reload cycles)
+        print(f"[SAM3-DBG] model device={device}, processor.device={processor.device}", file=sys.stderr)
+        print(f"[SAM3-DBG] processor._inference_dtype={getattr(processor, '_inference_dtype', 'NOT SET')}", file=sys.stderr)
+        print(f"[SAM3-DBG] backbone param dtype={next(processor.model.backbone.parameters()).dtype}, device={next(processor.model.backbone.parameters()).device}", file=sys.stderr)
+        print(f"[SAM3-DBG] find_stage img_ids device={processor.find_stage.img_ids.device}", file=sys.stderr)
+
         if hasattr(processor, 'sync_device_with_model'):
             processor.sync_device_with_model()
         elif hasattr(processor, 'device') and str(processor.device) != str(device):
@@ -174,6 +168,15 @@ class SAM3Grounding(io.ComfyNode):
         masks = state.get("masks", None)
         boxes = state.get("boxes", None)
         scores = state.get("scores", None)
+
+        import sys
+        print(f"[SAM3-DBG] state keys: {list(state.keys())}", file=sys.stderr)
+        print(f"[SAM3-DBG] masks: {type(masks)}, shape={masks.shape if hasattr(masks, 'shape') else 'N/A'}, len={len(masks) if masks is not None else 'None'}", file=sys.stderr)
+        if scores is not None:
+            print(f"[SAM3-DBG] scores: {scores.shape}, values={scores.tolist() if scores.numel() < 20 else scores[:20].tolist()}", file=sys.stderr)
+        if "masks_logits" in state:
+            ml = state["masks_logits"]
+            print(f"[SAM3-DBG] masks_logits: shape={ml.shape}, min={ml.min():.4f}, max={ml.max():.4f}", file=sys.stderr)
 
         # Check if we got any results AFTER threshold
         if masks is None or len(masks) == 0:
@@ -443,8 +446,8 @@ class SAM3Segmentation(io.ComfyNode):
             display_name="SAM3 Point Segmentation",
             category="SAM3",
             inputs=[
-                io.Custom("SAM3_MODEL").Input("sam3_model",
-                                              tooltip="SAM3 model loaded from LoadSAM3Model node"),
+                io.Custom("SAM3_MODEL_CONFIG").Input("sam3_model_config",
+                                              tooltip="SAM3 model config from LoadSAM3Model node"),
                 io.Image.Input("image",
                                tooltip="Input image to perform segmentation on"),
                 io.Custom("SAM3_POINTS_PROMPT").Input("positive_points", optional=True,
@@ -470,34 +473,21 @@ class SAM3Segmentation(io.ComfyNode):
         )
 
     @classmethod
-    def execute(cls, sam3_model, image, positive_points=None, negative_points=None,
+    def execute(cls, sam3_model_config, image, positive_points=None, negative_points=None,
                 box=None, refinement_iterations=0, use_multimask=True, output_best_mask=True):
         """
         Perform SAM2-style interactive segmentation at point/box locations.
-
-        Args:
-            sam3_model: SAM3ModelPatcher from LoadSAM3Model node
-            image: ComfyUI image tensor [B, H, W, C]
-            positive_points: Foreground point prompts
-            negative_points: Background point prompts
-            box: Box prompt (first box used)
-            refinement_iterations: Number of refinement passes
-            use_multimask: Return multiple mask candidates
-            output_best_mask: Select best mask automatically
-
-        Returns:
-            Tuple of (masks, mask_logits, visualization, boxes_json, scores_json)
         """
         import json
-
-        # Use ComfyUI's model management to load model to GPU
+        from ._model_cache import get_or_build_model
         import comfy.model_management
+
+        sam3_model = get_or_build_model(sam3_model_config)
         comfy.model_management.load_models_gpu([sam3_model])
 
         processor = sam3_model.processor
         model = processor.model
 
-        # Sync processor device after model load (handles offload/reload cycles)
         if hasattr(processor, 'sync_device_with_model'):
             processor.sync_device_with_model()
 
@@ -691,8 +681,8 @@ class SAM3MultipromptSegmentation(io.ComfyNode):
             display_name="SAM3 Multiprompt Segmentation",
             category="SAM3",
             inputs=[
-                io.Custom("SAM3_MODEL").Input("sam3_model",
-                                              tooltip="SAM3 model loaded from LoadSAM3Model node"),
+                io.Custom("SAM3_MODEL_CONFIG").Input("sam3_model_config",
+                                              tooltip="SAM3 model config from LoadSAM3Model node"),
                 io.Image.Input("image",
                                tooltip="Input image to perform segmentation on"),
                 io.Custom("SAM3_MULTI_PROMPTS").Input("multi_prompts",
@@ -709,29 +699,21 @@ class SAM3MultipromptSegmentation(io.ComfyNode):
         )
 
     @classmethod
-    def execute(cls, sam3_model, image, multi_prompts, refinement_iterations=0,
+    def execute(cls, sam3_model_config, image, multi_prompts, refinement_iterations=0,
                 use_multimask=False):
         """
         Perform multi-region segmentation.
-
-        Args:
-            sam3_model: SAM3ModelPatcher from LoadSAM3Model node
-            image: ComfyUI image tensor [B, H, W, C]
-            multi_prompts: List of prompt dicts from SAM3MultiRegionCollector
-
-        Returns:
-            Tuple of (masks batch, visualization)
         """
         import json
-
-        # Use ComfyUI's model management to load model to GPU
+        from ._model_cache import get_or_build_model
         import comfy.model_management
+
+        sam3_model = get_or_build_model(sam3_model_config)
         comfy.model_management.load_models_gpu([sam3_model])
 
         processor = sam3_model.processor
         model = processor.model
 
-        # Sync processor device after model load
         if hasattr(processor, 'sync_device_with_model'):
             processor.sync_device_with_model()
 

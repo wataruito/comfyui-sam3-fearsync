@@ -73,18 +73,27 @@ def get_or_build_model(config):
     )
     del remapped_ckpt
     if missing_keys:
-        log.info(f"Missing keys: {len(missing_keys)}")
+        log.debug("SAM3: %d missing keys during load", len(missing_keys))
     if unexpected_keys:
-        log.info(f"Unexpected keys: {len(unexpected_keys)}")
+        log.debug("SAM3: %d unexpected keys during load", len(unexpected_keys))
 
-    # Fix leftover meta-device buffers
-    for name, buf in model.named_buffers():
+    # Fix leftover meta-device buffers.
+    # Non-persistent buffers (like causal attention masks) are NOT saved in the
+    # checkpoint, so they stay on meta device after load_state_dict(assign=True).
+    # We must rebuild them rather than blindly zeroing, since some (like
+    # attn_mask) need specific values (e.g. -inf upper triangle for causality).
+    for name, buf in list(model.named_buffers()):
         if buf.device.type == "meta":
             parts = name.split(".")
             parent = model
             for p in parts[:-1]:
                 parent = getattr(parent, p)
-            parent._buffers[parts[-1]] = torch.zeros_like(buf, device="cpu")
+            attr_name = parts[-1]
+            # Try to rebuild the buffer via its owner's builder method
+            if attr_name == "attn_mask" and hasattr(parent, "build_causal_mask"):
+                parent._buffers[attr_name] = parent.build_causal_mask()
+            else:
+                parent._buffers[attr_name] = torch.zeros_like(buf, device="cpu")
 
     model.eval()
 

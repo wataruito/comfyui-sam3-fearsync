@@ -28,12 +28,6 @@ class SAM3UnifiedModel(ModelPatcher):
         self._load_device = load_device
         self._offload_device = offload_device
         self._model_dtype = dtype or torch.float32
-        # Set inference dtype on processor immediately so set_image() always
-        # casts image inputs to bf16/fp16 before backbone forward.
-        self._processor._inference_dtype = self._model_dtype
-        import logging, os
-        if os.environ.get("DEBUG_COMFYUI_SAM3", "").lower() in ("1", "true", "yes"):
-            logging.getLogger("sam3").warning("SAM3UnifiedModel: dtype=%s, processor._inference_dtype=%s", self._model_dtype, self._processor._inference_dtype)
 
         # The full model (detector + tracker) is the nn.Module we manage
         full_model = video_predictor.model
@@ -141,7 +135,6 @@ class SAM3UnifiedModel(ModelPatcher):
         Follows the native ComfyUI pattern: the patcher owns device state and
         pushes it to the processor as a torch.device (like ClipVisionModel.load_device).
         """
-        self._processor._inference_dtype = self._model_dtype
         if hasattr(self._processor, 'device'):
             self._processor.device = device
         if hasattr(self._processor, 'find_stage') and self._processor.find_stage is not None:

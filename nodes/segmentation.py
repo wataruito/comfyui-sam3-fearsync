@@ -84,17 +84,11 @@ class SAM3Grounding(io.ComfyNode):
         from ._model_cache import get_or_build_model
         import comfy.model_management
 
-        import sys
         sam3_model = get_or_build_model(sam3_model_config)
         comfy.model_management.load_models_gpu([sam3_model])
 
         processor = sam3_model.processor
         device = sam3_model.current_device
-
-        print(f"[SAM3-DBG] model device={device}, processor.device={processor.device}", file=sys.stderr)
-        print(f"[SAM3-DBG] processor._inference_dtype={getattr(processor, '_inference_dtype', 'NOT SET')}", file=sys.stderr)
-        print(f"[SAM3-DBG] backbone param dtype={next(processor.model.backbone.parameters()).dtype}, device={next(processor.model.backbone.parameters()).device}", file=sys.stderr)
-        print(f"[SAM3-DBG] find_stage img_ids device={processor.find_stage.img_ids.device}", file=sys.stderr)
 
         if hasattr(processor, 'sync_device_with_model'):
             processor.sync_device_with_model()
@@ -168,15 +162,6 @@ class SAM3Grounding(io.ComfyNode):
         masks = state.get("masks", None)
         boxes = state.get("boxes", None)
         scores = state.get("scores", None)
-
-        import sys
-        print(f"[SAM3-DBG] state keys: {list(state.keys())}", file=sys.stderr)
-        print(f"[SAM3-DBG] masks: {type(masks)}, shape={masks.shape if hasattr(masks, 'shape') else 'N/A'}, len={len(masks) if masks is not None else 'None'}", file=sys.stderr)
-        if scores is not None:
-            print(f"[SAM3-DBG] scores: {scores.shape}, values={scores.tolist() if scores.numel() < 20 else scores[:20].tolist()}", file=sys.stderr)
-        if "masks_logits" in state:
-            ml = state["masks_logits"]
-            print(f"[SAM3-DBG] masks_logits: shape={ml.shape}, min={ml.min():.4f}, max={ml.max():.4f}", file=sys.stderr)
 
         # Check if we got any results AFTER threshold
         if masks is None or len(masks) == 0:

@@ -118,8 +118,11 @@ def generic_nms(
 
     if ious.is_cuda:
         if GENERIC_NMS_AVAILABLE:
-            return generic_nms_cuda(ious, scores, iou_threshold, use_iou_matrix=True)
-        else:
+            try:
+                return generic_nms_cuda(ious, scores, iou_threshold, use_iou_matrix=True)
+            except (ImportError, OSError, RuntimeError) as e:
+                log.warning("GPU NMS failed at runtime (%s), falling back to CPU", e)
+        if not GENERIC_NMS_AVAILABLE:
             global _SHOWN_NMS_WARNING
             if not _SHOWN_NMS_WARNING:
                 log.warning(

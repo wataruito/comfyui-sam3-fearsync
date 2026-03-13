@@ -1309,23 +1309,20 @@ class Sam3Processor:
             raise ValueError("Image must be a PIL image or a tensor")
         image = v2.functional.to_image(image).to(self.device)
         image = self.transform(image).unsqueeze(0)
-        # Native ComfyUI pattern: cast input to target dtype at the pipeline
-        # boundary. manual_cast layers will cast their fp32 weights to match.
-        inference_dtype = getattr(self, '_inference_dtype', None)
-        if inference_dtype is not None and inference_dtype in (torch.float16, torch.bfloat16):
-            image = image.to(dtype=inference_dtype)
-        log.debug(f"[DEBUG] set_image: input shape={image.shape}, dtype={image.dtype}, "
-                 f"min={image.min():.4f}, max={image.max():.4f}, device={image.device}")
+        # Cast image to match the backbone's native weight dtype so that
+        # manual_cast keeps weights in their stored precision (typically bf16).
+        # Without this, an fp32 image causes manual_cast to promote bf16
+        # weights to fp32, producing different features than the original model.
+        # Cast image to match the backbone's native weight dtype so that
+        # manual_cast keeps weights in their stored precision (typically bf16).
+        # Without this, an fp32 image causes manual_cast to promote bf16
+        # weights to fp32, producing different features than the original model.
+        backbone_dtype = next(self.model.backbone.parameters()).dtype
+        if backbone_dtype != image.dtype:
+            image = image.to(dtype=backbone_dtype)
         state["original_height"] = height
         state["original_width"] = width
         state["backbone_out"] = self.model.backbone.forward_image(image)
-        # Debug: inspect backbone output
-        backbone_out = state["backbone_out"]
-        log.debug(f"[DEBUG] set_image: backbone_out keys: {list(backbone_out.keys())}")
-        if "backbone_fpn" in backbone_out:
-            for i, feat in enumerate(backbone_out["backbone_fpn"]):
-                log.debug(f"[DEBUG]   backbone_fpn[{i}]: shape={feat.shape}, dtype={feat.dtype}, "
-                         f"min={feat.min():.4f}, max={feat.max():.4f}")
         inst_interactivity_en = self.model.inst_interactive_predictor is not None
         if inst_interactivity_en and "sam2_backbone_out" in state["backbone_out"]:
             sam2_backbone_out = state["backbone_out"]["sam2_backbone_out"]
@@ -1357,9 +1354,9 @@ class Sam3Processor:
             for image in images
         ]
         images = torch.stack(images, dim=0)
-        inference_dtype = getattr(self, '_inference_dtype', None)
-        if inference_dtype is not None and inference_dtype in (torch.float16, torch.bfloat16):
-            images = images.to(dtype=inference_dtype)
+        backbone_dtype = next(self.model.backbone.parameters()).dtype
+        if backbone_dtype != images.dtype:
+            images = images.to(dtype=backbone_dtype)
         state["backbone_out"] = self.model.backbone.forward_image(images)
         inst_interactivity_en = self.model.inst_interactive_predictor is not None
         if inst_interactivity_en and "sam2_backbone_out" in state["backbone_out"]:
@@ -1488,33 +1485,23 @@ class Sam3Processor:
         out_logits = outputs["pred_logits"]
         out_masks = outputs["pred_masks"]
 
-        # Debug: print raw output shapes and stats
+        # Match the original SAM3 processor: multiply class logits by presence
+        # score explicitly. This is how the model was trained and evaluated.
+        out_probs = out_logits.float().sigmoid()
+        presence_score = outputs["presence_logit_dec"].float().sigmoid().unsqueeze(1)
+        out_probs = (out_probs * presence_score).squeeze(-1)
+
         import sys
-        print(f"[SAM3-DBG] forward_grounding output keys: {list(outputs.keys())}", file=sys.stderr)
-        print(f"[SAM3-DBG] pred_logits shape: {out_logits.shape}, min: {out_logits.min():.4f}, max: {out_logits.max():.4f}", file=sys.stderr)
-        print(f"[SAM3-DBG] pred_boxes shape: {out_bbox.shape}", file=sys.stderr)
-        print(f"[SAM3-DBG] pred_masks shape: {out_masks.shape}", file=sys.stderr)
-
-        # pred_logits already have presence baked in via supervise_joint_box_scores:
-        #   pred_logits = inverse_sigmoid(sigmoid(class_raw) * sigmoid(presence))
-        # So sigmoid(pred_logits) = sigmoid(class_raw) * sigmoid(presence).
-        # Do NOT multiply by presence again — that would square its effect.
-        out_probs = out_logits.sigmoid().squeeze(-1)
-
-        if "presence_logit_dec" in outputs:
-            presence_raw = outputs["presence_logit_dec"]
-            log.debug(f"[DEBUG] presence_logit_dec: {presence_raw.shape}, "
-                     f"val={presence_raw.flatten().tolist()}, sigmoid={presence_raw.sigmoid().flatten().tolist()}")
-        log.debug(f"[DEBUG] out_probs (joint_box_scores, no double presence): "
-                 f"min={out_probs.min():.4f}, max={out_probs.max():.4f}")
-
-        print(f"[SAM3-DBG] confidence_threshold: {self.confidence_threshold}", file=sys.stderr)
-        print(f"[SAM3-DBG] out_probs shape: {out_probs.shape}, min: {out_probs.min():.4f}, max: {out_probs.max():.4f}", file=sys.stderr)
-        print(f"[SAM3-DBG] detections above threshold: {(out_probs > self.confidence_threshold).sum().item()} / {out_probs.numel()}", file=sys.stderr)
-
-        # Top-10 probabilities for debugging
-        topk_vals, topk_idxs = out_probs.flatten().topk(min(10, out_probs.numel()))
-        print(f"[SAM3-DBG] top-10 probs: {[f'{v:.4f}' for v in topk_vals.tolist()]}", file=sys.stderr)
+        print(f"[DBG] _forward_grounding:", file=sys.stderr)
+        print(f"[DBG]   out_logits: shape={out_logits.shape}, dtype={out_logits.dtype}, "
+              f"min={out_logits.float().min():.4f}, max={out_logits.float().max():.4f}", file=sys.stderr)
+        pld = outputs["presence_logit_dec"]
+        print(f"[DBG]   presence_logit_dec: shape={pld.shape}, dtype={pld.dtype}, "
+              f"min={pld.float().min():.4f}, max={pld.float().max():.4f}, "
+              f"sigmoid_max={pld.float().sigmoid().max():.6f}", file=sys.stderr)
+        print(f"[DBG]   out_probs: max={out_probs.max():.6f}, "
+              f"above_thresh={( out_probs > self.confidence_threshold).sum().item()}/{out_probs.numel()}, "
+              f"threshold={self.confidence_threshold}", file=sys.stderr)
 
         keep = out_probs > self.confidence_threshold
         out_probs = out_probs[keep]

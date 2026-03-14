@@ -1,0 +1,129 @@
+Capturing execution frames: scene_seg_interactive.json
+  [ComfyUI] [ERROR] An error occurred while retrieving information for the 'SAM3CreateBox' node.
+  [ComfyUI] Traceback (most recent call last):
+  [ComfyUI]   File "/home/andrea/workspaces/SAM3-2308/ComfyUI/server.py", line 705, in get_object_info
+  [ComfyUI]     out[x] = node_info(x)
+  [ComfyUI]   File "/home/andrea/workspaces/SAM3-2308/ComfyUI/server.py", line 657, in node_info
+  [ComfyUI]     return obj_class.GET_NODE_INFO_V1()
+  [ComfyUI]   File "/home/andrea/workspaces/SAM3-2308/ComfyUI/comfy_api/latest/_io.py", line 1816, in GET_NODE_INFO_V1
+  [ComfyUI]     schema = cls.GET_SCHEMA()
+  [ComfyUI]   File "/home/andrea/workspaces/SAM3-2308/ComfyUI/comfy_api/latest/_io.py", line 1952, in GET_SCHEMA
+  [ComfyUI]     schema = cls.FINALIZE_SCHEMA()
+  [ComfyUI]   File "/home/andrea/workspaces/SAM3-2308/ComfyUI/comfy_api/latest/_io.py", line 1943, in FINALIZE_SCHEMA
+  [ComfyUI]     schema = cls.define_schema()
+  [ComfyUI]   File "/home/andrea/workspaces/SAM3-2308/ComfyUI/custom_nodes/ComfyUI-SAM3/nodes/segmentation.py", line 255, in define_schema
+  [ComfyUI]     io.Float.Input("center_x", default=0.5, min=0.0, max=1.0, step=0.01,
+  [ComfyUI] TypeError: Float.Input.__init__() got an unexpected keyword argument 'display'
+  [ComfyUI] 
+  [ComfyUI] [ERROR] An error occurred while retrieving information for the 'SAM3CreatePoint' node.
+  [ComfyUI] Traceback (most recent call last):
+  [ComfyUI]   File "/home/andrea/workspaces/SAM3-2308/ComfyUI/server.py", line 705, in get_object_info
+  [ComfyUI]     out[x] = node_info(x)
+  [ComfyUI]   File "/home/andrea/workspaces/SAM3-2308/ComfyUI/server.py", line 657, in node_info
+  [ComfyUI]     return obj_class.GET_NODE_INFO_V1()
+  [ComfyUI]   File "/home/andrea/workspaces/SAM3-2308/ComfyUI/comfy_api/latest/_io.py", line 1816, in GET_NODE_INFO_V1
+  [ComfyUI]     schema = cls.GET_SCHEMA()
+  [ComfyUI]   File "/home/andrea/workspaces/SAM3-2308/ComfyUI/comfy_api/latest/_io.py", line 1952, in GET_SCHEMA
+  [ComfyUI]     schema = cls.FINALIZE_SCHEMA()
+  [ComfyUI]   File "/home/andrea/workspaces/SAM3-2308/ComfyUI/comfy_api/latest/_io.py", line 1943, in FINALIZE_SCHEMA
+  [ComfyUI]     schema = cls.define_schema()
+  [ComfyUI]   File "/home/andrea/workspaces/SAM3-2308/ComfyUI/custom_nodes/ComfyUI-SAM3/nodes/segmentation.py", line 295, in define_schema
+  [ComfyUI]     io.Float.Input("x", default=0.5, min=0.0, max=1.0, step=0.01,
+  [ComfyUI] TypeError: Float.Input.__init__() got an unexpected keyword argument 'display'
+  [ComfyUI] 
+  Frame 1 saved (frame_000.jpg, t=0.0s)
+  Validating workflow...
+  [ComfyUI] === /validate endpoint called ===
+  [ComfyUI] Received JSON with keys: ['prompt']
+  [ComfyUI] Prompt has 4 nodes
+  [ComfyUI]   Node 1: LoadImage
+  [ComfyUI]     Inputs: {"image": "image.png"}
+  [ComfyUI]   Node 4: MaskPreview
+  [ComfyUI]     Inputs: {"mask": ["25", 0]}
+  Queuing workflow for execution...
+  [ComfyUI]   Node 12: LoadSAM3Model
+  [ComfyUI]     Inputs: {"precision": "auto", "compile": "auto"}
+  [ComfyUI]   Node 25: SAM3InteractiveCollector
+  [ComfyUI]     Inputs: {"multi_prompts_store": "[{\"positive_points\":[{\"x\":3346.704486138097,\"y\":2681.6412520604563},{\"x\":3353.9719078740486,\"y\":2332.7978245699082}],\"negative_points\":[],\"positive_boxes\":[],\"n
+  [ComfyUI] Generated prompt_id: a3f743cb-8814-4726-846f-6fc2b218c08a
+  [ComfyUI] Calling execution.validate_prompt()...
+  [ComfyUI] Validation result: valid=True
+  [ComfyUI] === Validation PASSED ===
+  [ComfyUI] got prompt
+  [ComfyUI] WARNING: 'NoneType' object has no attribute 'shape'
+  [ComfyUI] Loading model from: /home/andrea/workspaces/SAM3-2308/ComfyUI/models/sam3/sam3.safetensors
+  [ComfyUI] torch.compile enabled
+  [ComfyUI] Constructing model on meta device (zero memory)...
+  [ComfyUI] setting max_num_objects=10000 and num_obj_for_compile=16
+  [ComfyUI] Loading checkpoint into meta model with assign=True...
+  [ComfyUI] Loading checkpoint: /home/andrea/workspaces/SAM3-2308/ComfyUI/models/sam3/sam3.safetensors
+  [ComfyUI] Added 309 keys for detector.inst_interactive_predictor
+  [ComfyUI] Sam3VideoPredictor using device: cuda:0
+  Frame 2 saved (frame_001.jpg, t=2.4s)
+  [capture-periodic] freeze=17ms shot=159ms unfreeze=5ms saved=True
+  [ComfyUI] Running compilation warmup (this may take a few minutes on first run)...
+  [ComfyUI] Compilation warmup complete
+  [ComfyUI] Model ready (1756.7 MB)
+  [ComfyUI] Requested to load Sam3VideoInferenceWithInstanceInteractivity
+  [ComfyUI] loaded partially; 0.00 MB usable, 0.00 MB loaded, 1745.47 MB offloaded, 118.01 MB buffer reserved, lowvram patches: 0
+  [ComfyUI] [DEBUG] set_image: input shape=torch.Size([1, 3, 1008, 1008]), dtype=torch.bfloat16, min=-1.0000, max=0.9531, device=cuda:0
+  [ComfyUI] Backbone.forward_image IN:   samples=torch.bfloat16 [1, 3, 1008, 1008] min=-1.0000 max=0.9531
+  [ComfyUI] FPN_Neck.forward IN:   input=torch.bfloat16 [1, 3, 1008, 1008] min=-1.0000 max=0.9531
+  [ComfyUI] ViT.forward IN:   x=torch.bfloat16 [1, 3, 1008, 1008] min=-1.0000 max=0.9531
+  [ComfyUI] !!! Exception during processing !!! Expected all tensors to be on the same device, but found at least two devices, cuda:0 and cpu!
+  [ComfyUI] Traceback (most recent call last):
+  [ComfyUI]   File "/home/andrea/workspaces/SAM3-2308/ComfyUI/execution.py", line 524, in execute
+  [ComfyUI]     output_data, output_ui, has_subgraph, has_pending_tasks = await get_output_data(prompt_id, unique_id, obj, input_data_all, execution_block_cb=execution_block_cb, pre_execute_cb=pre_execute_cb, v3_data=v3_data)
+  [ComfyUI]   File "/home/andrea/workspaces/SAM3-2308/ComfyUI/execution.py", line 333, in get_output_data
+  [ComfyUI]     return_values = await _async_map_node_over_list(prompt_id, unique_id, obj, input_data_all, obj.FUNCTION, allow_interrupt=True, execution_block_cb=execution_block_cb, pre_execute_cb=pre_execute_cb, v3_data=v3_data)
+  [ComfyUI]   File "/home/andrea/workspaces/SAM3-2308/ComfyUI/execution.py", line 307, in _async_map_node_over_list
+  [ComfyUI]     await process_inputs(input_dict, i)
+  [ComfyUI]   File "/home/andrea/workspaces/SAM3-2308/ComfyUI/execution.py", line 295, in process_inputs
+  [ComfyUI]     result = f(**inputs)
+  [ComfyUI]   File "/home/andrea/workspaces/SAM3-2308/ComfyUI/comfy_api/internal/__init__.py", line 149, in wrapped_func
+  [ComfyUI]     return method(locked_class, **inputs)
+  [ComfyUI]   File "/home/andrea/workspaces/SAM3-2308/ComfyUI/comfy_api/latest/_io.py", line 1764, in EXECUTE_NORMALIZED
+  [ComfyUI]     to_return = cls.execute(*args, **kwargs)
+  [ComfyUI]   File "/home/andrea/workspaces/SAM3-2308/ComfyUI/custom_nodes/ComfyUI-SAM3/nodes/sam3_interactive.py", line 681, in execute
+  [ComfyUI]     state = processor.set_image(pil_image)
+  [ComfyUI]   File "/home/andrea/workspaces/SAM3-2308/.venv/lib/python3.10/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+  [ComfyUI]     return func(*args, **kwargs)
+  [ComfyUI]   File "/home/andrea/workspaces/SAM3-2308/ComfyUI/custom_nodes/ComfyUI-SAM3/nodes/sam3/utils.py", line 1321, in set_image
+  [ComfyUI]     state["backbone_out"] = self.model.backbone.forward_image(image)
+  [ComfyUI]   File "/home/andrea/workspaces/SAM3-2308/ComfyUI/custom_nodes/ComfyUI-SAM3/nodes/sam3/model.py", line 3281, in forward_image
+  [ComfyUI]     result = self._forward_image_no_act_ckpt(samples)
+  [ComfyUI]   File "/home/andrea/workspaces/SAM3-2308/ComfyUI/custom_nodes/ComfyUI-SAM3/nodes/sam3/model.py", line 3288, in _forward_image_no_act_ckpt
+  [ComfyUI]     sam3_features, sam3_pos, sam2_features, sam2_pos = self.vision_backbone.forward(
+  [ComfyUI]   File "/home/andrea/workspaces/SAM3-2308/ComfyUI/custom_nodes/ComfyUI-SAM3/nodes/sam3/model.py", line 2036, in forward
+  [ComfyUI]     xs = self.trunk(tensor_list)
+  [ComfyUI]   File "/home/andrea/workspaces/SAM3-2308/.venv/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1776, in _wrapped_call_impl
+  [ComfyUI]     return self._call_impl(*args, **kwargs)
+  [ComfyUI]   File "/home/andrea/workspaces/SAM3-2308/.venv/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1787, in _call_impl
+  [ComfyUI]     return forward_call(*args, **kwargs)
+  [ComfyUI]   File "/home/andrea/workspaces/SAM3-2308/ComfyUI/custom_nodes/ComfyUI-SAM3/nodes/sam3/model.py", line 983, in forward
+  [ComfyUI]     x = blk(x)
+  Execution complete (t=4.3s)
+  [ComfyUI]   File "/home/andrea/workspaces/SAM3-2308/.venv/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1776, in _wrapped_call_impl
+  [ComfyUI]     return self._call_impl(*args, **kwargs)
+  Execution error: {'prompt_id': 'cf391874-a3e4-4cbc-a5bf-56d9853d94a4', 'node_id': '25', 'node_type': 'SAM3InteractiveCollector', 'executed': ['1', '12'], 'exception_message': 'Expected all tensors to be on the same device, but found at least two devices, cuda:0 and cpu!\n', 'exception_type': 'RuntimeError', 'traceback': ['  File "/home/andrea/workspaces/SAM3-2308/ComfyUI/execution.py", line 524, in execute\n    output_data, output_ui, has_subgraph, has_pending_tasks = await get_output_data(prompt_id, unique_id, obj, input_data_all, execution_block_cb=execution_block_cb, pre_execute_cb=pre_execute_cb, v3_data=v3_data)\n', '  File "/home/andrea/workspaces/SAM3-2308/ComfyUI/execution.py", line 333, in get_output_data\n    return_values = await _async_map_node_over_list(prompt_id, unique_id, obj, input_data_all, obj.FUNCTION, allow_interrupt=True, execution_block_cb=execution_block_cb, pre_execute_cb=pre_execute_cb, v3_data=v3_data)\n', '  File "/home/andrea/workspaces/SAM3-2308/ComfyUI/execution.py", line 307, in _async_map_node_over_list\n    await process_inputs(input_dict, i)\n', '  File "/home/andrea/workspaces/SAM3-2308/ComfyUI/execution.py", line 295, in process_inputs\n    result = f(**inputs)\n', '  File "/home/andrea/workspaces/SAM3-2308/ComfyUI/comfy_api/internal/__init__.py", line 149, in wrapped_func\n    return method(locked_class, **inputs)\n', '  File "/home/andrea/workspaces/SAM3-2308/ComfyUI/comfy_api/latest/_io.py", line 1764, in EXECUTE_NORMALIZED\n    to_return = cls.execute(*args, **kwargs)\n', '  File "/home/andrea/workspaces/SAM3-2308/ComfyUI/custom_nodes/ComfyUI-SAM3/nodes/sam3_interactive.py", line 681, in execute\n    state = processor.set_image(pil_image)\n', '  File "/home/andrea/workspaces/SAM3-2308/.venv/lib/python3.10/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context\n    return func(*args, **kwargs)\n', '  File "/home/andrea/workspaces/SAM3-2308/ComfyUI/custom_nodes/ComfyUI-SAM3/nodes/sam3/utils.py", line 1321, in set_image\n    state["backbone_out"] = self.model.backbone.forward_image(image)\n', '  File "/home/andrea/workspaces/SAM3-2308/ComfyUI/custom_nodes/ComfyUI-SAM3/nodes/sam3/model.py", line 3281, in forward_image\n    result = self._forward_image_no_act_ckpt(samples)\n', '  File "/home/andrea/workspaces/SAM3-2308/ComfyUI/custom_nodes/ComfyUI-SAM3/nodes/sam3/model.py", line 3288, in _forward_image_no_act_ckpt\n    sam3_features, sam3_pos, sam2_features, sam2_pos = self.vision_backbone.forward(\n', '  File "/home/andrea/workspaces/SAM3-2308/ComfyUI/custom_nodes/ComfyUI-SAM3/nodes/sam3/model.py", line 2036, in forward\n    xs = self.trunk(tensor_list)\n', '  File "/home/andrea/workspaces/SAM3-2308/.venv/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1776, in _wrapped_call_impl\n    return self._call_impl(*args, **kwargs)\n', '  File "/home/andrea/workspaces/SAM3-2308/.venv/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1787, in _call_impl\n    return forward_call(*args, **kwargs)\n', '  File "/home/andrea/workspaces/SAM3-2308/ComfyUI/custom_nodes/ComfyUI-SAM3/nodes/sam3/model.py", line 983, in forward\n    x = blk(x)\n', '  File "/home/andrea/workspaces/SAM3-2308/.venv/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1776, in _wrapped_call_impl\n    return self._call_impl(*args, **kwargs)\n', '  File "/home/andrea/workspaces/SAM3-2308/.venv/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1787, in _call_impl\n    return forward_call(*args, **kwargs)\n', '  File "/home/andrea/workspaces/SAM3-2308/ComfyUI/custom_nodes/ComfyUI-SAM3/nodes/sam3/model.py", line 819, in forward\n    x = self.ls1(self.attn(x))\n', '  File "/home/andrea/workspaces/SAM3-2308/.venv/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1776, in _wrapped_call_impl\n    return self._call_impl(*args, **kwargs)\n', '  File "/home/andrea/workspaces/SAM3-2308/.venv/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1787, in _call_impl\n    return forward_call(*args, **kwargs)\n', '  File "/home/andrea/workspaces/SAM3-2308/ComfyUI/custom_nodes/ComfyUI-SAM3/nodes/sam3/model.py", line 717, in forward\n    q, k = self._apply_rope(q, k)\n', '  File "/home/andrea/workspaces/SAM3-2308/ComfyUI/custom_nodes/ComfyUI-SAM3/nodes/sam3/model.py", line 699, in _apply_rope\n    return apply_rotary_enc(q, k, freqs_cis=self.freqs_cis)\n', '  File "/home/andrea/workspaces/SAM3-2308/ComfyUI/custom_nodes/ComfyUI-SAM3/nodes/sam3/attention.py", line 287, in apply_rotary_enc\n    xq_out = torch.view_as_real(xq_ * freqs_cis).flatten(3)\n'], 'current_inputs': {'multi_prompts_store': ['[{"positive_points":[{"x":3346.704486138097,"y":2681.6412520604563},{"x":3353.9719078740486,"y":2332.7978245699082}],"negative_points":[],"positive_boxes":[],"negative_boxes":[],"name":"Prompt 1"},{"positive_points":[],"negative_points":[],"positive_boxes":[],"negative_boxes":[],"name":"Prompt 2"}]'], 'sam3_model': ['</home/andrea/workspaces/SAM3-2308/ComfyUI/custom_nodes/ComfyUI-SAM3.nodes.sam3_model_patcher.SAM3UnifiedModel object at 0x7a420410a290>'], 'image': ['tensor([[[[0.9176, 0.8392, 0.7333],\n          [0.9294, 0.8471, 0.7412],\n          [0.9176, 0.8353, 0.7294],\n          ...,\n          [0.8078, 0.6627, 0.4902],\n          [0.8039, 0.6588, 0.4863],\n          [0.8157, 0.6706, 0.4980]],\n\n         [[0.9137, 0.8353, 0.7294],\n          [0.9216, 0.8392, 0.7333],\n          [0.9176, 0.8353, 0.7294],\n          ...,\n          [0.8039, 0.6588, 0.4863],\n          [0.8039, 0.6588, 0.4863],\n          [0.8118, 0.6667, 0.4941]],\n\n         [[0.9137, 0.8314, 0.7255],\n          [0.9137, 0.8314, 0.7255],\n          [0.9176, 0.8353, 0.7294],\n          ...,\n          [0.8078, 0.6627, 0.4902],\n          [0.8118, 0.6667, 0.4941],\n          [0.8039, 0.6588, 0.4863]],\n\n         ...,\n\n         [[0.8667, 0.6784, 0.4902],\n          [0.8706, 0.6824, 0.4941],\n          [0.8706, 0.6824, 0.4941],\n          ...,\n          [0.6471, 0.4431, 0.2549],\n          [0.6392, 0.4353, 0.2471],\n          [0.6471, 0.4431, 0.2549]],\n\n         [[0.8588, 0.6706, 0.4824],\n          [0.8667, 0.6784, 0.4902],\n          [0.8706, 0.6824, 0.4941],\n          ...,\n          [0.6431, 0.4392, 0.2510],\n          [0.6471, 0.4431, 0.2549],\n          [0.6549, 0.4510, 0.2627]],\n\n         [[0.8627, 0.6745, 0.4863],\n          [0.8667, 0.6784, 0.4902],\n          [0.8784, 0.6902, 0.5020],\n          ...,\n          [0.6353, 0.4314, 0.2431],\n          [0.6431, 0.4392, 0.2510],\n          [0.6392, 0.4353, 0.2471]]]])']}, 'current_outputs': ['1', '12', '4', '25'], 'timestamp': 1773007848962}
+  [ComfyUI]   File "/home/andrea/workspaces/SAM3-2308/.venv/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1787, in _call_impl
+    Status: FAILED
+    Error: Workflow execution failed: {'prompt_id': 'cf391874-a3e4-4cbc-a5bf-56d9853d94a4', 'node_id': '25', 'node_type': 'SAM3InteractiveCollector', 'executed': ['1', '12'], 'exception_message': 'Expected all tensors to be on the same device, but found at least two devices, cuda:0 and cpu!\n', 'exception_type': 'RuntimeError', 'traceback': ['  File "/home/andrea/workspaces/SAM3-2308/ComfyUI/execution.py", line 524, in execute\n    output_data, output_ui, has_subgraph, has_pending_tasks = await get_output_data(prompt_id, unique_id, obj, input_data_all, execution_block_cb=execution_block_cb, pre_execute_cb=pre_execute_cb, v3_data=v3_data)\n', '  File "/home/andrea/workspaces/SAM3-2308/ComfyUI/execution.py", line 333, in get_output_data\n    return_values = await _async_map_node_over_list(prompt_id, unique_id, obj, input_data_all, obj.FUNCTION, allow_interrupt=True, execution_block_cb=execution_block_cb, pre_execute_cb=pre_execute_cb, v3_data=v3_data)\n', '  File "/home/andrea/workspaces/SAM3-2308/ComfyUI/execution.py", line 307, in _async_map_node_over_list\n    await process_inputs(input_dict, i)\n', '  File "/home/andrea/workspaces/SAM3-2308/ComfyUI/execution.py", line 295, in process_inputs\n    result = f(**inputs)\n', '  File "/home/andrea/workspaces/SAM3-2308/ComfyUI/comfy_api/internal/__init__.py", line 149, in wrapped_func\n    return method(locked_class, **inputs)\n', '  File "/home/andrea/workspaces/SAM3-2308/ComfyUI/comfy_api/latest/_io.py", line 1764, in EXECUTE_NORMALIZED\n    to_return = cls.execute(*args, **kwargs)\n', '  File "/home/andrea/workspaces/SAM3-2308/ComfyUI/custom_nodes/ComfyUI-SAM3/nodes/sam3_interactive.py", line 681, in execute\n    state = processor.set_image(pil_image)\n', '  File "/home/andrea/workspaces/SAM3-2308/.venv/lib/python3.10/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context\n    return func(*args, **kwargs)\n', '  File "/home/andrea/workspaces/SAM3-2308/ComfyUI/custom_nodes/ComfyUI-SAM3/nodes/sam3/utils.py", line 1321, in set_image\n    state["backbone_out"] = self.model.backbone.forward_image(image)\n', '  File "/home/andrea/workspaces/SAM3-2308/ComfyUI/custom_nodes/ComfyUI-SAM3/nodes/sam3/model.py", line 3281, in forward_image\n    result = self._forward_image_no_act_ckpt(samples)\n', '  File "/home/andrea/workspaces/SAM3-2308/ComfyUI/custom_nodes/ComfyUI-SAM3/nodes/sam3/model.py", line 3288, in _forward_image_no_act_ckpt\n    sam3_features, sam3_pos, sam2_features, sam2_pos = self.vision_backbone.forward(\n', '  File "/home/andrea/workspaces/SAM3-2308/ComfyUI/custom_nodes/ComfyUI-SAM3/nodes/sam3/model.py", line 2036, in forward\n    xs = self.trunk(tensor_list)\n', '  File "/home/andrea/workspaces/SAM3-2308/.venv/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1776, in _wrapped_call_impl\n    return self._call_impl(*args, **kwargs)\n', '  File "/home/andrea/workspaces/SAM3-2308/.venv/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1787, in _call_impl\n    return forward_call(*args, **kwargs)\n', '  File "/home/andrea/workspaces/SAM3-2308/ComfyUI/custom_nodes/ComfyUI-SAM3/nodes/sam3/model.py", line 983, in forward\n    x = blk(x)\n', '  File "/home/andrea/workspaces/SAM3-2308/.venv/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1776, in _wrapped_call_impl\n    return self._call_impl(*args, **kwargs)\n', '  File "/home/andrea/workspaces/SAM3-2308/.venv/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1787, in _call_impl\n    return forward_call(*args, **kwargs)\n', '  File "/home/andrea/workspaces/SAM3-2308/ComfyUI/custom_nodes/ComfyUI-SAM3/nodes/sam3/model.py", line 819, in forward\n    x = self.ls1(self.attn(x))\n', '  File "/home/andrea/workspaces/SAM3-2308/.venv/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1776, in _wrapped_call_impl\n    return self._call_impl(*args, **kwargs)\n', '  File "/home/andrea/workspaces/SAM3-2308/.venv/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1787, in _call_impl\n    return forward_call(*args, **kwargs)\n', '  File "/home/andrea/workspaces/SAM3-2308/ComfyUI/custom_nodes/ComfyUI-SAM3/nodes/sam3/model.py", line 717, in forward\n    q, k = self._apply_rope(q, k)\n', '  File "/home/andrea/workspaces/SAM3-2308/ComfyUI/custom_nodes/ComfyUI-SAM3/nodes/sam3/model.py", line 699, in _apply_rope\n    return apply_rotary_enc(q, k, freqs_cis=self.freqs_cis)\n', '  File "/home/andrea/workspaces/SAM3-2308/ComfyUI/custom_nodes/ComfyUI-SAM3/nodes/sam3/attention.py", line 287, in apply_rotary_enc\n    xq_out = torch.view_as_real(xq_ * freqs_cis).flatten(3)\n'], 'current_inputs': {'multi_prompts_store': ['[{"positive_points":[{"x":3346.704486138097,"y":2681.6412520604563},{"x":3353.9719078740486,"y":2332.7978245699082}],"negative_points":[],"positive_boxes":[],"negative_boxes":[],"name":"Prompt 1"},{"positive_points":[],"negative_points":[],"positive_boxes":[],"negative_boxes":[],"name":"Prompt 2"}]'], 'sam3_model': ['</home/andrea/workspaces/SAM3-2308/ComfyUI/custom_nodes/ComfyUI-SAM3.nodes.sam3_model_patcher.SAM3UnifiedModel object at 0x7a420410a290>'], 'image': ['tensor([[[[0.9176, 0.8392, 0.7333],\n          [0.9294, 0.8471, 0.7412],\n          [0.9176, 0.8353, 0.7294],\n          ...,\n          [0.8078, 0.6627, 0.4902],\n          [0.8039, 0.6588, 0.4863],\n          [0.8157, 0.6706, 0.4980]],\n\n         [[0.9137, 0.8353, 0.7294],\n          [0.9216, 0.8392, 0.7333],\n          [0.9176, 0.8353, 0.7294],\n          ...,\n          [0.8039, 0.6588, 0.4863],\n          [0.8039, 0.6588, 0.4863],\n          [0.8118, 0.6667, 0.4941]],\n\n         [[0.9137, 0.8314, 0.7255],\n          [0.9137, 0.8314, 0.7255],\n          [0.9176, 0.8353, 0.7294],\n          ...,\n          [0.8078, 0.6627, 0.4902],\n          [0.8118, 0.6667, 0.4941],\n          [0.8039, 0.6588, 0.4863]],\n\n         ...,\n\n         [[0.8667, 0.6784, 0.4902],\n          [0.8706, 0.6824, 0.4941],\n          [0.8706, 0.6824, 0.4941],\n          ...,\n          [0.6471, 0.4431, 0.2549],\n          [0.6392, 0.4353, 0.2471],\n          [0.6471, 0.4431, 0.2549]],\n\n         [[0.8588, 0.6706, 0.4824],\n          [0.8667, 0.6784, 0.4902],\n          [0.8706, 0.6824, 0.4941],\n          ...,\n          [0.6431, 0.4392, 0.2510],\n          [0.6471, 0.4431, 0.2549],\n          [0.6549, 0.4510, 0.2627]],\n\n         [[0.8627, 0.6745, 0.4863],\n          [0.8667, 0.6784, 0.4902],\n          [0.8784, 0.6902, 0.5020],\n          ...,\n          [0.6353, 0.4314, 0.2431],\n          [0.6431, 0.4392, 0.2510],\n          [0.6392, 0.4353, 0.2471]]]])']}, 'current_outputs': ['1', '12', '4', '25'], 'timestamp': 1773007848962}
+    Details: Workflow: /home/work/sam3/ComfyUI/custom_nodes/ComfyUI-SAM3/workflows/scene_seg_interactive.json
+Node error: SAM3InteractiveCollector
+  [ComfyUI]     return forward_call(*args, **kwargs)
+  [ComfyUI]   File "/home/andrea/workspaces/SAM3-2308/ComfyUI/custom_nodes/ComfyUI-SAM3/nodes/sam3/model.py", line 819, in forward
+  [ComfyUI]     x = self.ls1(self.attn(x))
+  [ComfyUI]   File "/home/andrea/workspaces/SAM3-2308/.venv/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1776, in _wrapped_call_impl
+  [ComfyUI]     return self._call_impl(*args, **kwargs)
+  [ComfyUI]   File "/home/andrea/workspaces/SAM3-2308/.venv/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1787, in _call_impl
+  [ComfyUI]     return forward_call(*args, **kwargs)
+  [ComfyUI]   File "/home/andrea/workspaces/SAM3-2308/ComfyUI/custom_nodes/ComfyUI-SAM3/nodes/sam3/model.py", line 717, in forward
+  [ComfyUI]     q, k = self._apply_rope(q, k)
+  [ComfyUI]   File "/home/andrea/workspaces/SAM3-2308/ComfyUI/custom_nodes/ComfyUI-SAM3/nodes/sam3/model.py", line 699, in _apply_rope
+  [ComfyUI]     return apply_rotary_enc(q, k, freqs_cis=self.freqs_cis)
+  [ComfyUI]   File "/home/andrea/workspaces/SAM3-2308/ComfyUI/custom_nodes/ComfyUI-SAM3/nodes/sam3/attention.py", line 287, in apply_rotary_enc
+  [ComfyUI]     xq_out = torch.view_as_real(xq_ * freqs_cis).flatten(3)
+  [ComfyUI] RuntimeError: Expected all tensors to be on the same device, but found at least two devices, cuda:0 and cpu!
+  [ComfyUI] 
+  [ComfyUI] Prompt executed in 3.99 seconds

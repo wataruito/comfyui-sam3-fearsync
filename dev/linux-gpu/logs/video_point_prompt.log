@@ -1,0 +1,881 @@
+Capturing execution frames: video_point_prompt.json
+  [ComfyUI] [ERROR] An error occurred while retrieving information for the 'SAM3CreateBox' node.
+  [ComfyUI] Traceback (most recent call last):
+  [ComfyUI]   File "/home/andrea/workspaces/SAM3-2308/ComfyUI/server.py", line 705, in get_object_info
+  [ComfyUI]     out[x] = node_info(x)
+  [ComfyUI]   File "/home/andrea/workspaces/SAM3-2308/ComfyUI/server.py", line 657, in node_info
+  [ComfyUI]     return obj_class.GET_NODE_INFO_V1()
+  [ComfyUI]   File "/home/andrea/workspaces/SAM3-2308/ComfyUI/comfy_api/latest/_io.py", line 1816, in GET_NODE_INFO_V1
+  [ComfyUI]     schema = cls.GET_SCHEMA()
+  [ComfyUI]   File "/home/andrea/workspaces/SAM3-2308/ComfyUI/comfy_api/latest/_io.py", line 1952, in GET_SCHEMA
+  [ComfyUI]     schema = cls.FINALIZE_SCHEMA()
+  [ComfyUI]   File "/home/andrea/workspaces/SAM3-2308/ComfyUI/comfy_api/latest/_io.py", line 1943, in FINALIZE_SCHEMA
+  [ComfyUI]     schema = cls.define_schema()
+  [ComfyUI]   File "/home/andrea/workspaces/SAM3-2308/ComfyUI/custom_nodes/ComfyUI-SAM3/nodes/segmentation.py", line 255, in define_schema
+  [ComfyUI]     io.Float.Input("center_x", default=0.5, min=0.0, max=1.0, step=0.01,
+  [ComfyUI] TypeError: Float.Input.__init__() got an unexpected keyword argument 'display'
+  [ComfyUI] 
+  [ComfyUI] [ERROR] An error occurred while retrieving information for the 'SAM3CreatePoint' node.
+  [ComfyUI] Traceback (most recent call last):
+  [ComfyUI]   File "/home/andrea/workspaces/SAM3-2308/ComfyUI/server.py", line 705, in get_object_info
+  [ComfyUI]     out[x] = node_info(x)
+  [ComfyUI]   File "/home/andrea/workspaces/SAM3-2308/ComfyUI/server.py", line 657, in node_info
+  [ComfyUI]     return obj_class.GET_NODE_INFO_V1()
+  [ComfyUI]   File "/home/andrea/workspaces/SAM3-2308/ComfyUI/comfy_api/latest/_io.py", line 1816, in GET_NODE_INFO_V1
+  [ComfyUI]     schema = cls.GET_SCHEMA()
+  [ComfyUI]   File "/home/andrea/workspaces/SAM3-2308/ComfyUI/comfy_api/latest/_io.py", line 1952, in GET_SCHEMA
+  [ComfyUI]     schema = cls.FINALIZE_SCHEMA()
+  [ComfyUI]   File "/home/andrea/workspaces/SAM3-2308/ComfyUI/comfy_api/latest/_io.py", line 1943, in FINALIZE_SCHEMA
+  [ComfyUI]     schema = cls.define_schema()
+  [ComfyUI]   File "/home/andrea/workspaces/SAM3-2308/ComfyUI/custom_nodes/ComfyUI-SAM3/nodes/segmentation.py", line 295, in define_schema
+  [ComfyUI]     io.Float.Input("x", default=0.5, min=0.0, max=1.0, step=0.01,
+  [ComfyUI] TypeError: Float.Input.__init__() got an unexpected keyword argument 'display'
+  [ComfyUI] 
+  Frame 1 saved (frame_000.jpg, t=0.0s)
+  Validating workflow...
+  [ComfyUI] === /validate endpoint called ===
+  [ComfyUI] Received JSON with keys: ['prompt']
+  [ComfyUI] Prompt has 11 nodes
+  [ComfyUI]   Node 9: VHS_LoadVideo
+  Queuing workflow for execution...
+  [ComfyUI]     Inputs: {"video": "bedroom.mp4", "force_rate": 0, "custom_width": 0, "custom_height": 0, "frame_load_cap": 30, "skip_first_frames": 0, "select_every_nth": 1, "format": "AnimateDiff"}
+  [ComfyUI]   Node 13: CreateVideo
+  [ComfyUI]     Inputs: {"fps": 30, "images": ["14", 0]}
+  [ComfyUI]   Node 14: MaskToImage
+  [ComfyUI]     Inputs: {"mask": ["21", 0]}
+  [ComfyUI]   Node 15: SaveVideo
+  [ComfyUI]     Inputs: {"filename_prefix": "video/ComfyUI", "format": "auto", "codec": "auto", "video": ["13", 0]}
+  [ComfyUI]   Node 21: SAM3VideoOutput
+  [ComfyUI]     Inputs: {"obj_id": 0, "plot_all_masks": true, "masks": ["32", 0], "video_state": ["32", 2], "scores": ["32", 1]}
+  [ComfyUI]   Node 24: CreateVideo
+  [ComfyUI]     Inputs: {"fps": 30, "images": ["21", 2]}
+  [ComfyUI]   Node 25: SaveVideo
+  [ComfyUI]     Inputs: {"filename_prefix": "video/ComfyUI", "format": "auto", "codec": "auto", "video": ["24", 0]}
+  [ComfyUI]   Node 27: SAM3VideoSegmentation
+  [ComfyUI]     Inputs: {"prompt_mode": "point", "frame_idx": 0.3, "score_threshold": 0.3, "video_frames": ["9", 0], "positive_points": ["28", 0]}
+  [ComfyUI]   Node 28: SAM3PointCollector
+  [ComfyUI]     Inputs: {"points_store": "{\"positive\":[{\"x\":365.8296849641195,\"y\":82.1138596932428},{\"x\":389.5481601701001,\"y\":179.95494578458334},{\"x\":413.26663537608084,\"y\":52.465045726169905}],\"negative\":[
+  [ComfyUI]   Node 30: LoadSAM3Model
+  [ComfyUI]     Inputs: {"precision": "auto", "compile": "auto"}
+  [ComfyUI]   Node 32: SAM3Propagate
+  [ComfyUI]     Inputs: {"start_frame": 0, "end_frame": -1, "direction": "forward", "sam3_model": ["30", 0], "video_state": ["27", 0]}
+  [ComfyUI] Generated prompt_id: feb188a8-87e9-4437-b1ab-c9f09415e3ff
+  [ComfyUI] Calling execution.validate_prompt()...
+  [ComfyUI] Validation result: valid=True
+  [ComfyUI] === Validation PASSED ===
+  [ComfyUI] got prompt
+  [ComfyUI] WARNING: 'NoneType' object has no attribute 'session_uuid'
+  [ComfyUI] fingerprint_inputs SAM3Propagate: video_state id=93856140063712, session=None
+  [ComfyUI] fingerprint_inputs SAM3Propagate: returning (93856140063712, 0, -1, 'forward')
+  [ComfyUI] fingerprint_inputs SAM3VideoSegmentation: video_hash=9356dabdc8862dff08a9ab9d174121c1, prompt_mode=point
+  [ComfyUI] fingerprint_inputs SAM3VideoSegmentation: positive_points=None
+  [ComfyUI] fingerprint_inputs SAM3VideoSegmentation: negative_points=None
+  [ComfyUI] fingerprint_inputs SAM3VideoSegmentation: returning hash=3001493104180984658
+  [ComfyUI] WARNING: 'NoneType' object has no attribute 'shape'
+  [ComfyUI] CACHE MISS - computing new result for key=d7f60d60
+  [ComfyUI] Collected 3 positive, 0 negative points
+  [ComfyUI] Image dimensions: 960x544
+  [ComfyUI]   Positive point: (365.8, 82.1) -> (0.381, 0.151)
+  [ComfyUI]   Positive point: (389.5, 180.0) -> (0.406, 0.331)
+  [ComfyUI]   Positive point: (413.3, 52.5) -> (0.430, 0.096)
+  [ComfyUI] Output: 3 positive, 0 negative
+  [ComfyUI] CACHE MISS - computing new video_state for key=27f687e7
+  [ComfyUI] [MEM] Before video segmentation: VRAM 0.01GB alloc / 0.06GB reserved | RAM: 3.95GB (process), 11.3/31.2GB (system)
+  [ComfyUI] Saving 30 frames to /tmp/sam3_273b58a5__xp52d9i
+  Node executed (1 total), capturing...
+  [ComfyUI] Frames saved successfully
+  [ComfyUI] Initialized session 273b58a5
+  [ComfyUI] Frames: 30, Size: 960x544
+  [ComfyUI] Prompt mode: point
+  [ComfyUI] Added point prompt: obj=1, positive=3, negative=0
+  [ComfyUI] Total prompts: 1
+  [ComfyUI] [MEM] After video segmentation: VRAM 0.01GB alloc / 0.06GB reserved | RAM: 3.95GB (process), 11.3/31.2GB (system)
+  [ComfyUI] Loading model from: /home/andrea/workspaces/SAM3-2308/ComfyUI/models/sam3/sam3.safetensors
+  [ComfyUI] torch.compile enabled
+  [ComfyUI] Constructing model on meta device (zero memory)...
+  Frame 2 saved (frame_001.jpg, t=1.6s)
+  [capture-node] freeze=3ms shot=128ms unfreeze=4ms saved=True
+  [ComfyUI] setting max_num_objects=10000 and num_obj_for_compile=16
+  [ComfyUI] Loading checkpoint into meta model with assign=True...
+  [ComfyUI] Loading checkpoint: /home/andrea/workspaces/SAM3-2308/ComfyUI/models/sam3/sam3.safetensors
+  [ComfyUI] Added 309 keys for detector.inst_interactive_predictor
+  [ComfyUI] Sam3VideoPredictor using device: cuda:0
+  [ComfyUI] Running compilation warmup (this may take a few minutes on first run)...
+  [ComfyUI] Compilation warmup complete
+  [ComfyUI] Model ready (1756.7 MB)
+  [ComfyUI] Propagate CACHE MISS - running propagation for session=273b58a5
+  [ComfyUI] Requested to load Sam3VideoInferenceWithInstanceInteractivity
+  [ComfyUI] loaded partially; 0.00 MB usable, 0.00 MB loaded, 1745.47 MB offloaded, 118.01 MB buffer reserved, lowvram patches: 0
+  [ComfyUI] Starting propagation: frames 0 to end
+  [ComfyUI] Prompts: 1
+  [ComfyUI] [MEM] Before propagation start: VRAM 0.01GB alloc / 0.06GB reserved | RAM: 7.24GB (process), 11.5/31.2GB (system)
+  [ComfyUI] [MEM] Before reconstruction: VRAM 0.01GB alloc / 0.06GB reserved | RAM: 7.24GB (process), 11.5/31.2GB (system)
+  [ComfyUI] Reconstructing inference state for 273b58a5
+  [ComfyUI] [MEM] Before start_session: VRAM 0.01GB alloc / 0.06GB reserved | RAM: 7.24GB (process), 11.5/31.2GB (system)
+  [ComfyUI] [MEM] Before init_state: VRAM 0.01GB alloc / 0.06GB reserved | RAM: 7.24GB (process), 11.5/31.2GB (system)
+  [ComfyUI] LazyLoader initialized: 30 frames, max_cached=64, offload_to_cpu=True
+  [ComfyUI] [MEM] After init_state: VRAM 0.01GB alloc / 0.06GB reserved | RAM: 7.14GB (process), 11.5/31.2GB (system)
+  [ComfyUI] Active sessions in _ALL_INFERENCE_STATES: 1
+  [ComfyUI] [MEM] After start_session: VRAM 0.01GB alloc / 0.06GB reserved | RAM: 7.14GB (process), 11.5/31.2GB (system)
+  [ComfyUI] Applying point prompt: frame=0, obj=1
+  [ComfyUI] Points to model: [[0.38107258850429115, 0.15094459502434338], [0.405779333510521, 0.3307995326922488], [0.43048607851675086, 0.09644309876134173]], labels: [1, 1, 1]
+  [ComfyUI] Backbone.forward_image IN:   samples=torch.float32 [1, 3, 1008, 1008] min=-1.0000 max=1.0000
+  [ComfyUI] FPN_Neck.forward IN:   input=torch.float32 [1, 3, 1008, 1008] min=-1.0000 max=1.0000
+  [ComfyUI] ViT.forward IN:   x=torch.float32 [1, 3, 1008, 1008] min=-1.0000 max=1.0000
+  Frame 3 saved (frame_002.jpg, t=3.8s)
+  [capture-periodic] freeze=5ms shot=129ms unfreeze=4ms saved=True
+  [ComfyUI] attention backend: attention_sub_quad | dtype: torch.bfloat16
+  Frame 4 saved (frame_003.jpg, t=6.0s)
+  [capture-periodic] freeze=4ms shot=138ms unfreeze=5ms saved=True
+  [capture-loop] iter=50 t=6.3s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=3
+  Frame 5 saved (frame_004.jpg, t=8.3s)
+  [capture-periodic] freeze=4ms shot=127ms unfreeze=5ms saved=True
+  Frame 6 saved (frame_005.jpg, t=10.6s)
+  [capture-periodic] freeze=5ms shot=147ms unfreeze=4ms saved=True
+  [capture-loop] iter=100 t=12.2s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=4
+  Frame 7 saved (frame_006.jpg, t=12.9s)
+  [capture-periodic] freeze=4ms shot=136ms unfreeze=5ms saved=True
+  Frame 8 saved (frame_007.jpg, t=15.1s)
+  [capture-periodic] freeze=5ms shot=151ms unfreeze=5ms saved=True
+  Frame 9 saved (frame_008.jpg, t=17.4s)
+  [capture-periodic] freeze=4ms shot=140ms unfreeze=5ms saved=True
+  [capture-loop] iter=150 t=18.3s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=5
+  Frame 10 saved (frame_009.jpg, t=19.7s)
+  [capture-periodic] freeze=4ms shot=136ms unfreeze=5ms saved=True
+  Frame 11 saved (frame_010.jpg, t=21.9s)
+  [capture-periodic] freeze=5ms shot=136ms unfreeze=4ms saved=True
+  [capture-loop] iter=200 t=24.1s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=5
+  Frame 12 saved (frame_011.jpg, t=24.2s)
+  [capture-periodic] freeze=4ms shot=136ms unfreeze=4ms saved=True
+  Frame 13 saved (frame_012.jpg, t=26.4s)
+  [capture-periodic] freeze=4ms shot=140ms unfreeze=4ms saved=True
+  Frame 14 saved (frame_013.jpg, t=28.7s)
+  [capture-periodic] freeze=4ms shot=142ms unfreeze=5ms saved=True
+  [capture-loop] iter=250 t=30.1s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=4
+  Frame 15 saved (frame_014.jpg, t=30.9s)
+  [capture-periodic] freeze=4ms shot=132ms unfreeze=5ms saved=True
+  Frame 16 saved (frame_015.jpg, t=33.2s)
+  [capture-periodic] freeze=4ms shot=123ms unfreeze=4ms saved=True
+  Frame 17 saved (frame_016.jpg, t=35.4s)
+  [capture-periodic] freeze=6ms shot=126ms unfreeze=5ms saved=True
+  [capture-loop] iter=300 t=36.0s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=4
+  Frame 18 saved (frame_017.jpg, t=37.7s)
+  [capture-periodic] freeze=4ms shot=156ms unfreeze=8ms saved=True
+  Frame 19 saved (frame_018.jpg, t=39.9s)
+  [capture-periodic] freeze=4ms shot=130ms unfreeze=3ms saved=True
+  [capture-loop] iter=350 t=41.8s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=5
+  Frame 20 saved (frame_019.jpg, t=42.2s)
+  [capture-periodic] freeze=4ms shot=137ms unfreeze=5ms saved=True
+  Frame 21 saved (frame_020.jpg, t=44.4s)
+  [capture-periodic] freeze=5ms shot=145ms unfreeze=4ms saved=True
+  Frame 22 saved (frame_021.jpg, t=46.7s)
+  [capture-periodic] freeze=5ms shot=139ms unfreeze=4ms saved=True
+  [capture-loop] iter=400 t=47.9s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=5
+  Frame 23 saved (frame_022.jpg, t=49.0s)
+  [capture-periodic] freeze=5ms shot=135ms unfreeze=4ms saved=True
+  Frame 24 saved (frame_023.jpg, t=51.2s)
+  [capture-periodic] freeze=4ms shot=158ms unfreeze=4ms saved=True
+  Frame 25 saved (frame_024.jpg, t=53.5s)
+  [capture-periodic] freeze=5ms shot=143ms unfreeze=4ms saved=True
+  [capture-loop] iter=450 t=54.0s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=4
+  Frame 26 saved (frame_025.jpg, t=55.9s)
+  [capture-periodic] freeze=4ms shot=142ms unfreeze=4ms saved=True
+  Frame 27 saved (frame_026.jpg, t=58.1s)
+  [capture-periodic] freeze=4ms shot=141ms unfreeze=5ms saved=True
+  [capture-loop] iter=500 t=59.8s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=4
+  Frame 28 saved (frame_027.jpg, t=60.4s)
+  [capture-periodic] freeze=5ms shot=152ms unfreeze=4ms saved=True
+  Frame 29 saved (frame_028.jpg, t=62.6s)
+  [capture-periodic] freeze=4ms shot=138ms unfreeze=4ms saved=True
+  Frame 30 saved (frame_029.jpg, t=64.9s)
+  [capture-periodic] freeze=4ms shot=160ms unfreeze=4ms saved=True
+  [capture-loop] iter=550 t=65.9s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=5
+  Frame 31 saved (frame_030.jpg, t=67.2s)
+  [capture-periodic] freeze=4ms shot=152ms unfreeze=4ms saved=True
+  Frame 32 saved (frame_031.jpg, t=69.5s)
+  [capture-periodic] freeze=4ms shot=160ms unfreeze=4ms saved=True
+  [capture-loop] iter=600 t=71.7s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=5
+  Frame 33 saved (frame_032.jpg, t=71.7s)
+  [capture-periodic] freeze=5ms shot=147ms unfreeze=4ms saved=True
+  Frame 34 saved (frame_033.jpg, t=74.0s)
+  [capture-periodic] freeze=4ms shot=154ms unfreeze=5ms saved=True
+  Frame 35 saved (frame_034.jpg, t=76.4s)
+  [capture-periodic] freeze=4ms shot=140ms unfreeze=4ms saved=True
+  [capture-loop] iter=650 t=77.9s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=5
+  Frame 36 saved (frame_035.jpg, t=78.7s)
+  [capture-periodic] freeze=5ms shot=155ms unfreeze=5ms saved=True
+  Frame 37 saved (frame_036.jpg, t=81.0s)
+  [capture-periodic] freeze=5ms shot=151ms unfreeze=7ms saved=True
+  Frame 38 saved (frame_037.jpg, t=83.3s)
+  [capture-periodic] freeze=5ms shot=135ms unfreeze=4ms saved=True
+  [capture-loop] iter=700 t=84.0s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=4
+  Frame 39 saved (frame_038.jpg, t=85.5s)
+  [capture-periodic] freeze=5ms shot=145ms unfreeze=4ms saved=True
+  Frame 40 saved (frame_039.jpg, t=87.8s)
+  [capture-periodic] freeze=4ms shot=154ms unfreeze=5ms saved=True
+  [capture-loop] iter=750 t=89.9s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=5
+  Frame 41 saved (frame_040.jpg, t=90.1s)
+  [capture-periodic] freeze=5ms shot=148ms unfreeze=5ms saved=True
+  Frame 42 saved (frame_041.jpg, t=92.3s)
+  [capture-periodic] freeze=4ms shot=132ms unfreeze=4ms saved=True
+  Frame 43 saved (frame_042.jpg, t=94.7s)
+  [capture-periodic] freeze=5ms shot=159ms unfreeze=7ms saved=True
+  [capture-loop] iter=800 t=96.0s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=5
+  Frame 44 saved (frame_043.jpg, t=97.0s)
+  [capture-periodic] freeze=4ms shot=137ms unfreeze=5ms saved=True
+  Frame 45 saved (frame_044.jpg, t=99.3s)
+  [capture-periodic] freeze=5ms shot=141ms unfreeze=4ms saved=True
+  Frame 46 saved (frame_045.jpg, t=101.5s)
+  [capture-periodic] freeze=4ms shot=148ms unfreeze=5ms saved=True
+  [capture-loop] iter=850 t=102.0s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=5
+  Frame 47 saved (frame_046.jpg, t=103.9s)
+  [capture-periodic] freeze=3ms shot=120ms unfreeze=3ms saved=True
+  Frame 48 saved (frame_047.jpg, t=106.1s)
+  [capture-periodic] freeze=5ms shot=146ms unfreeze=4ms saved=True
+  [capture-loop] iter=900 t=108.0s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=5
+  Frame 49 saved (frame_048.jpg, t=108.4s)
+  [capture-periodic] freeze=5ms shot=148ms unfreeze=5ms saved=True
+  Frame 50 saved (frame_049.jpg, t=110.7s)
+  [capture-periodic] freeze=5ms shot=145ms unfreeze=4ms saved=True
+  Frame 51 saved (frame_050.jpg, t=113.0s)
+  [capture-periodic] freeze=4ms shot=125ms unfreeze=5ms saved=True
+  [capture-loop] iter=950 t=114.1s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=4
+  Frame 52 saved (frame_051.jpg, t=115.3s)
+  [capture-periodic] freeze=5ms shot=149ms unfreeze=5ms saved=True
+  Frame 53 saved (frame_052.jpg, t=117.5s)
+  [capture-periodic] freeze=5ms shot=127ms unfreeze=5ms saved=True
+  Frame 54 saved (frame_053.jpg, t=119.8s)
+  [capture-periodic] freeze=5ms shot=159ms unfreeze=5ms saved=True
+  [capture-loop] iter=1000 t=120.2s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=3
+  Frame 55 saved (frame_054.jpg, t=122.1s)
+  [capture-periodic] freeze=4ms shot=145ms unfreeze=6ms saved=True
+  Frame 56 saved (frame_055.jpg, t=124.5s)
+  [capture-periodic] freeze=5ms shot=140ms unfreeze=4ms saved=True
+  [capture-loop] iter=1050 t=126.1s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=4
+  Frame 57 saved (frame_056.jpg, t=126.7s)
+  [capture-periodic] freeze=4ms shot=149ms unfreeze=7ms saved=True
+  Frame 58 saved (frame_057.jpg, t=129.0s)
+  [capture-periodic] freeze=5ms shot=147ms unfreeze=5ms saved=True
+  Frame 59 saved (frame_058.jpg, t=131.2s)
+  [capture-periodic] freeze=5ms shot=132ms unfreeze=5ms saved=True
+  [capture-loop] iter=1100 t=132.1s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=5
+  Frame 60 saved (frame_059.jpg, t=133.6s)
+  [capture-periodic] freeze=5ms shot=154ms unfreeze=5ms saved=True
+  Frame 61 saved (frame_060.jpg, t=135.8s)
+  [capture-periodic] freeze=4ms shot=146ms unfreeze=5ms saved=True
+  [capture-loop] iter=1150 t=138.1s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=5
+  Frame 62 saved (frame_061.jpg, t=138.2s)
+  [capture-periodic] freeze=4ms shot=124ms unfreeze=5ms saved=True
+  Frame 63 saved (frame_062.jpg, t=140.4s)
+  [capture-periodic] freeze=5ms shot=145ms unfreeze=5ms saved=True
+  Frame 64 saved (frame_063.jpg, t=142.7s)
+  [capture-periodic] freeze=5ms shot=151ms unfreeze=5ms saved=True
+  [capture-loop] iter=1200 t=144.1s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=5
+  Frame 65 saved (frame_064.jpg, t=145.0s)
+  [capture-periodic] freeze=6ms shot=132ms unfreeze=5ms saved=True
+  Frame 66 saved (frame_065.jpg, t=147.3s)
+  [capture-periodic] freeze=5ms shot=140ms unfreeze=5ms saved=True
+  Frame 67 saved (frame_066.jpg, t=149.5s)
+  [capture-periodic] freeze=4ms shot=137ms unfreeze=4ms saved=True
+  [capture-loop] iter=1250 t=150.1s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=4
+  Frame 68 saved (frame_067.jpg, t=151.8s)
+  [capture-periodic] freeze=4ms shot=142ms unfreeze=5ms saved=True
+  Frame 69 saved (frame_068.jpg, t=154.0s)
+  [capture-periodic] freeze=4ms shot=124ms unfreeze=5ms saved=True
+  [capture-loop] iter=1300 t=155.9s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=4
+  Frame 70 saved (frame_069.jpg, t=156.3s)
+  [capture-periodic] freeze=5ms shot=137ms unfreeze=5ms saved=True
+  Frame 71 saved (frame_070.jpg, t=158.5s)
+  [capture-periodic] freeze=4ms shot=130ms unfreeze=4ms saved=True
+  Frame 72 saved (frame_071.jpg, t=160.8s)
+  [capture-periodic] freeze=5ms shot=140ms unfreeze=5ms saved=True
+  [capture-loop] iter=1350 t=162.0s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=4
+  Frame 73 saved (frame_072.jpg, t=163.1s)
+  [capture-periodic] freeze=5ms shot=136ms unfreeze=5ms saved=True
+  Frame 74 saved (frame_073.jpg, t=165.3s)
+  [capture-periodic] freeze=5ms shot=141ms unfreeze=5ms saved=True
+  Frame 75 saved (frame_074.jpg, t=167.6s)
+  [capture-periodic] freeze=4ms shot=137ms unfreeze=5ms saved=True
+  [capture-loop] iter=1400 t=168.1s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=4
+  Frame 76 saved (frame_075.jpg, t=169.9s)
+  [capture-periodic] freeze=4ms shot=149ms unfreeze=5ms saved=True
+  Frame 77 saved (frame_076.jpg, t=172.2s)
+  [capture-periodic] freeze=5ms shot=138ms unfreeze=5ms saved=True
+  [capture-loop] iter=1450 t=173.9s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=5
+  Frame 78 saved (frame_077.jpg, t=174.5s)
+  [capture-periodic] freeze=4ms shot=140ms unfreeze=5ms saved=True
+  Frame 79 saved (frame_078.jpg, t=176.7s)
+  [capture-periodic] freeze=4ms shot=151ms unfreeze=5ms saved=True
+  Frame 80 saved (frame_079.jpg, t=179.1s)
+  [capture-periodic] freeze=4ms shot=151ms unfreeze=4ms saved=True
+  [capture-loop] iter=1500 t=180.0s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=4
+  Frame 81 saved (frame_080.jpg, t=181.3s)
+  [capture-periodic] freeze=4ms shot=121ms unfreeze=5ms saved=True
+  Frame 82 saved (frame_081.jpg, t=183.6s)
+  [capture-periodic] freeze=4ms shot=140ms unfreeze=5ms saved=True
+  [capture-loop] iter=1550 t=185.8s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=4
+  Frame 83 saved (frame_082.jpg, t=185.8s)
+  [capture-periodic] freeze=4ms shot=127ms unfreeze=4ms saved=True
+  Frame 84 saved (frame_083.jpg, t=188.1s)
+  [capture-periodic] freeze=6ms shot=128ms unfreeze=5ms saved=True
+  Frame 85 saved (frame_084.jpg, t=190.4s)
+  [capture-periodic] freeze=4ms shot=141ms unfreeze=5ms saved=True
+  [capture-loop] iter=1600 t=191.9s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=5
+  Frame 86 saved (frame_085.jpg, t=192.6s)
+  [capture-periodic] freeze=4ms shot=125ms unfreeze=4ms saved=True
+  Frame 87 saved (frame_086.jpg, t=194.8s)
+  [capture-periodic] freeze=5ms shot=156ms unfreeze=5ms saved=True
+  Frame 88 saved (frame_087.jpg, t=197.1s)
+  [capture-periodic] freeze=4ms shot=142ms unfreeze=5ms saved=True
+  [capture-loop] iter=1650 t=197.9s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=4
+  Frame 89 saved (frame_088.jpg, t=199.4s)
+  [capture-periodic] freeze=4ms shot=137ms unfreeze=4ms saved=True
+  Frame 90 saved (frame_089.jpg, t=201.7s)
+  [capture-periodic] freeze=5ms shot=140ms unfreeze=5ms saved=True
+  [capture-loop] iter=1700 t=203.7s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=4
+  Frame 91 saved (frame_090.jpg, t=203.9s)
+  [capture-periodic] freeze=4ms shot=144ms unfreeze=5ms saved=True
+  Frame 92 saved (frame_091.jpg, t=206.2s)
+  [capture-periodic] freeze=4ms shot=148ms unfreeze=5ms saved=True
+  Frame 93 saved (frame_092.jpg, t=208.4s)
+  [capture-periodic] freeze=5ms shot=127ms unfreeze=5ms saved=True
+  [capture-loop] iter=1750 t=209.8s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=4
+  Frame 94 saved (frame_093.jpg, t=210.8s)
+  [capture-periodic] freeze=4ms shot=131ms unfreeze=7ms saved=True
+  Frame 95 saved (frame_094.jpg, t=213.0s)
+  [capture-periodic] freeze=5ms shot=131ms unfreeze=5ms saved=True
+  Frame 96 saved (frame_095.jpg, t=215.2s)
+  [capture-periodic] freeze=5ms shot=125ms unfreeze=5ms saved=True
+  [capture-loop] iter=1800 t=215.8s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=4
+  Frame 97 saved (frame_096.jpg, t=217.5s)
+  [capture-periodic] freeze=4ms shot=128ms unfreeze=4ms saved=True
+  Frame 98 saved (frame_097.jpg, t=219.8s)
+  [capture-periodic] freeze=4ms shot=137ms unfreeze=5ms saved=True
+  [capture-loop] iter=1850 t=221.6s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=4
+  Frame 99 saved (frame_098.jpg, t=222.0s)
+  [capture-periodic] freeze=4ms shot=125ms unfreeze=4ms saved=True
+  Frame 100 saved (frame_099.jpg, t=224.2s)
+  [capture-periodic] freeze=4ms shot=128ms unfreeze=4ms saved=True
+  Frame 101 saved (frame_100.jpg, t=226.5s)
+  [capture-periodic] freeze=4ms shot=139ms unfreeze=5ms saved=True
+  [capture-loop] iter=1900 t=227.5s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=4
+  Frame 102 saved (frame_101.jpg, t=228.7s)
+  [capture-periodic] freeze=5ms shot=164ms unfreeze=5ms saved=True
+  Frame 103 saved (frame_102.jpg, t=231.0s)
+  [capture-periodic] freeze=4ms shot=152ms unfreeze=4ms saved=True
+  Frame 104 saved (frame_103.jpg, t=233.3s)
+  [capture-periodic] freeze=4ms shot=133ms unfreeze=4ms saved=True
+  [capture-loop] iter=1950 t=233.6s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=4
+  Frame 105 saved (frame_104.jpg, t=235.6s)
+  [capture-periodic] freeze=4ms shot=143ms unfreeze=4ms saved=True
+  Frame 106 saved (frame_105.jpg, t=237.8s)
+  [capture-periodic] freeze=5ms shot=126ms unfreeze=5ms saved=True
+  [capture-loop] iter=2000 t=239.4s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=4
+  Frame 107 saved (frame_106.jpg, t=240.1s)
+  [capture-periodic] freeze=4ms shot=156ms unfreeze=5ms saved=True
+  Frame 108 saved (frame_107.jpg, t=242.3s)
+  [capture-periodic] freeze=5ms shot=145ms unfreeze=5ms saved=True
+  Frame 109 saved (frame_108.jpg, t=244.6s)
+  [capture-periodic] freeze=4ms shot=140ms unfreeze=4ms saved=True
+  [capture-loop] iter=2050 t=245.5s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=5
+  Frame 110 saved (frame_109.jpg, t=246.9s)
+  [capture-periodic] freeze=5ms shot=153ms unfreeze=5ms saved=True
+  Frame 111 saved (frame_110.jpg, t=249.2s)
+  [capture-periodic] freeze=5ms shot=136ms unfreeze=4ms saved=True
+  [capture-loop] iter=2100 t=251.3s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=5
+  Frame 112 saved (frame_111.jpg, t=251.4s)
+  [capture-periodic] freeze=5ms shot=151ms unfreeze=6ms saved=True
+  Frame 113 saved (frame_112.jpg, t=253.7s)
+  [capture-periodic] freeze=4ms shot=138ms unfreeze=5ms saved=True
+  Frame 114 saved (frame_113.jpg, t=256.0s)
+  [capture-periodic] freeze=5ms shot=142ms unfreeze=5ms saved=True
+  [capture-loop] iter=2150 t=257.5s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=5
+  Frame 115 saved (frame_114.jpg, t=258.3s)
+  [capture-periodic] freeze=5ms shot=136ms unfreeze=5ms saved=True
+  Frame 116 saved (frame_115.jpg, t=260.6s)
+  [capture-periodic] freeze=5ms shot=133ms unfreeze=5ms saved=True
+  Frame 117 saved (frame_116.jpg, t=262.8s)
+  [capture-periodic] freeze=5ms shot=155ms unfreeze=7ms saved=True
+  [capture-loop] iter=2200 t=263.5s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=5
+  Frame 118 saved (frame_117.jpg, t=265.1s)
+  [capture-periodic] freeze=5ms shot=139ms unfreeze=5ms saved=True
+  Frame 119 saved (frame_118.jpg, t=267.4s)
+  [capture-periodic] freeze=5ms shot=132ms unfreeze=5ms saved=True
+  [capture-loop] iter=2250 t=269.3s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=4
+  Frame 120 saved (frame_119.jpg, t=269.6s)
+  [capture-periodic] freeze=5ms shot=152ms unfreeze=5ms saved=True
+  Frame 121 saved (frame_120.jpg, t=271.9s)
+  [capture-periodic] freeze=5ms shot=130ms unfreeze=5ms saved=True
+  Frame 122 saved (frame_121.jpg, t=274.1s)
+  [capture-periodic] freeze=5ms shot=148ms unfreeze=5ms saved=True
+  [capture-loop] iter=2300 t=275.3s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=5
+  Frame 123 saved (frame_122.jpg, t=276.4s)
+  [capture-periodic] freeze=5ms shot=138ms unfreeze=5ms saved=True
+  Frame 124 saved (frame_123.jpg, t=278.7s)
+  [capture-periodic] freeze=5ms shot=133ms unfreeze=5ms saved=True
+  Frame 125 saved (frame_124.jpg, t=281.0s)
+  [capture-periodic] freeze=5ms shot=140ms unfreeze=5ms saved=True
+  [capture-loop] iter=2350 t=281.5s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=5
+  Frame 126 saved (frame_125.jpg, t=283.3s)
+  [capture-periodic] freeze=5ms shot=140ms unfreeze=5ms saved=True
+  Frame 127 saved (frame_126.jpg, t=285.6s)
+  [capture-periodic] freeze=4ms shot=155ms unfreeze=5ms saved=True
+  [capture-loop] iter=2400 t=287.4s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=4
+  Frame 128 saved (frame_127.jpg, t=287.9s)
+  [capture-periodic] freeze=5ms shot=144ms unfreeze=5ms saved=True
+  Frame 129 saved (frame_128.jpg, t=290.2s)
+  [capture-periodic] freeze=5ms shot=137ms unfreeze=5ms saved=True
+  Frame 130 saved (frame_129.jpg, t=292.4s)
+  [capture-periodic] freeze=4ms shot=158ms unfreeze=5ms saved=True
+  [capture-loop] iter=2450 t=293.4s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=5
+  Frame 131 saved (frame_130.jpg, t=294.7s)
+  [capture-periodic] freeze=4ms shot=144ms unfreeze=5ms saved=True
+  Frame 132 saved (frame_131.jpg, t=296.9s)
+  [capture-periodic] freeze=5ms shot=140ms unfreeze=5ms saved=True
+  [capture-loop] iter=2500 t=299.3s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=6
+  Frame 133 saved (frame_132.jpg, t=299.3s)
+  [capture-periodic] freeze=5ms shot=132ms unfreeze=5ms saved=True
+  Frame 134 saved (frame_133.jpg, t=301.5s)
+  [capture-periodic] freeze=4ms shot=137ms unfreeze=5ms saved=True
+  Frame 135 saved (frame_134.jpg, t=303.8s)
+  [capture-periodic] freeze=5ms shot=151ms unfreeze=5ms saved=True
+  [capture-loop] iter=2550 t=305.3s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=4
+  Frame 136 saved (frame_135.jpg, t=306.0s)
+  [capture-periodic] freeze=5ms shot=144ms unfreeze=5ms saved=True
+  Frame 137 saved (frame_136.jpg, t=308.3s)
+  [capture-periodic] freeze=5ms shot=127ms unfreeze=4ms saved=True
+  Frame 138 saved (frame_137.jpg, t=310.6s)
+  [capture-periodic] freeze=5ms shot=138ms unfreeze=5ms saved=True
+  [capture-loop] iter=2600 t=311.3s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=5
+  Frame 139 saved (frame_138.jpg, t=312.8s)
+  [capture-periodic] freeze=4ms shot=129ms unfreeze=5ms saved=True
+  Frame 140 saved (frame_139.jpg, t=315.0s)
+  [capture-periodic] freeze=5ms shot=140ms unfreeze=4ms saved=True
+  [capture-loop] iter=2650 t=317.1s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=5
+  Frame 141 saved (frame_140.jpg, t=317.4s)
+  [capture-periodic] freeze=4ms shot=127ms unfreeze=5ms saved=True
+  Frame 142 saved (frame_141.jpg, t=319.6s)
+  [capture-periodic] freeze=4ms shot=137ms unfreeze=5ms saved=True
+  Frame 143 saved (frame_142.jpg, t=321.8s)
+  [capture-periodic] freeze=4ms shot=154ms unfreeze=5ms saved=True
+  [capture-loop] iter=2700 t=323.1s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=4
+  Frame 144 saved (frame_143.jpg, t=324.1s)
+  [capture-periodic] freeze=5ms shot=131ms unfreeze=5ms saved=True
+  Frame 145 saved (frame_144.jpg, t=326.4s)
+  [capture-periodic] freeze=4ms shot=147ms unfreeze=5ms saved=True
+  Frame 146 saved (frame_145.jpg, t=328.6s)
+  [capture-periodic] freeze=4ms shot=165ms unfreeze=4ms saved=True
+  [capture-loop] iter=2750 t=329.2s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=4
+  Frame 147 saved (frame_146.jpg, t=330.9s)
+  [capture-periodic] freeze=5ms shot=133ms unfreeze=4ms saved=True
+  Frame 148 saved (frame_147.jpg, t=333.1s)
+  [capture-periodic] freeze=5ms shot=137ms unfreeze=5ms saved=True
+  [capture-loop] iter=2800 t=334.9s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=5
+  Frame 149 saved (frame_148.jpg, t=335.4s)
+  [capture-periodic] freeze=4ms shot=131ms unfreeze=4ms saved=True
+  Frame 150 saved (frame_149.jpg, t=337.6s)
+  [capture-periodic] freeze=5ms shot=158ms unfreeze=5ms saved=True
+  Frame 151 saved (frame_150.jpg, t=339.9s)
+  [capture-periodic] freeze=4ms shot=151ms unfreeze=5ms saved=True
+  [capture-loop] iter=2850 t=341.0s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=4
+  Frame 152 saved (frame_151.jpg, t=342.2s)
+  [capture-periodic] freeze=4ms shot=150ms unfreeze=5ms saved=True
+  Frame 153 saved (frame_152.jpg, t=344.5s)
+  [capture-periodic] freeze=5ms shot=153ms unfreeze=5ms saved=True
+  Frame 154 saved (frame_153.jpg, t=346.8s)
+  [capture-periodic] freeze=5ms shot=127ms unfreeze=4ms saved=True
+  [capture-loop] iter=2900 t=347.1s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=3
+  Frame 155 saved (frame_154.jpg, t=349.1s)
+  [capture-periodic] freeze=5ms shot=158ms unfreeze=4ms saved=True
+  Frame 156 saved (frame_155.jpg, t=351.3s)
+  [capture-periodic] freeze=5ms shot=148ms unfreeze=7ms saved=True
+  [capture-loop] iter=2950 t=353.0s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=4
+  Frame 157 saved (frame_156.jpg, t=353.7s)
+  [capture-periodic] freeze=5ms shot=141ms unfreeze=5ms saved=True
+  Frame 158 saved (frame_157.jpg, t=355.9s)
+  [capture-periodic] freeze=4ms shot=157ms unfreeze=5ms saved=True
+  Frame 159 saved (frame_158.jpg, t=358.2s)
+  [capture-periodic] freeze=4ms shot=143ms unfreeze=4ms saved=True
+  [capture-loop] iter=3000 t=359.1s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=4
+  Frame 160 saved (frame_159.jpg, t=360.5s)
+  [capture-periodic] freeze=4ms shot=128ms unfreeze=5ms saved=True
+  Frame 161 saved (frame_160.jpg, t=362.7s)
+  [capture-periodic] freeze=4ms shot=136ms unfreeze=5ms saved=True
+  [capture-loop] iter=3050 t=364.9s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=6
+  Frame 162 saved (frame_161.jpg, t=365.1s)
+  [capture-periodic] freeze=5ms shot=130ms unfreeze=6ms saved=True
+  Frame 163 saved (frame_162.jpg, t=367.3s)
+  [capture-periodic] freeze=4ms shot=139ms unfreeze=5ms saved=True
+  Frame 164 saved (frame_163.jpg, t=369.5s)
+  [capture-periodic] freeze=5ms shot=146ms unfreeze=5ms saved=True
+  [capture-loop] iter=3100 t=370.9s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=4
+  Frame 165 saved (frame_164.jpg, t=371.8s)
+  [capture-periodic] freeze=5ms shot=132ms unfreeze=5ms saved=True
+  Frame 166 saved (frame_165.jpg, t=374.0s)
+  [capture-periodic] freeze=5ms shot=152ms unfreeze=5ms saved=True
+  Frame 167 saved (frame_166.jpg, t=376.3s)
+  [capture-periodic] freeze=4ms shot=140ms unfreeze=5ms saved=True
+  [capture-loop] iter=3150 t=377.0s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=5
+  Frame 168 saved (frame_167.jpg, t=378.6s)
+  [capture-periodic] freeze=4ms shot=132ms unfreeze=5ms saved=True
+  Frame 169 saved (frame_168.jpg, t=380.9s)
+  [capture-periodic] freeze=4ms shot=125ms unfreeze=4ms saved=True
+  [capture-loop] iter=3200 t=382.8s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=4
+  Frame 170 saved (frame_169.jpg, t=383.2s)
+  [capture-periodic] freeze=4ms shot=145ms unfreeze=5ms saved=True
+  Frame 171 saved (frame_170.jpg, t=385.4s)
+  [capture-periodic] freeze=5ms shot=157ms unfreeze=4ms saved=True
+  Frame 172 saved (frame_171.jpg, t=387.7s)
+  [capture-periodic] freeze=4ms shot=125ms unfreeze=4ms saved=True
+  [capture-loop] iter=3250 t=388.9s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=4
+  Frame 173 saved (frame_172.jpg, t=390.0s)
+  [capture-periodic] freeze=4ms shot=133ms unfreeze=5ms saved=True
+  Frame 174 saved (frame_173.jpg, t=392.2s)
+  [capture-periodic] freeze=4ms shot=132ms unfreeze=4ms saved=True
+  Frame 175 saved (frame_174.jpg, t=394.5s)
+  [capture-periodic] freeze=4ms shot=118ms unfreeze=4ms saved=True
+  [capture-loop] iter=3300 t=394.8s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=5
+  Frame 176 saved (frame_175.jpg, t=396.7s)
+  [capture-periodic] freeze=4ms shot=147ms unfreeze=4ms saved=True
+  Frame 177 saved (frame_176.jpg, t=398.9s)
+  [capture-periodic] freeze=4ms shot=132ms unfreeze=4ms saved=True
+  [capture-loop] iter=3350 t=400.6s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=5
+  Frame 178 saved (frame_177.jpg, t=401.2s)
+  [capture-periodic] freeze=4ms shot=138ms unfreeze=4ms saved=True
+  Frame 179 saved (frame_178.jpg, t=403.4s)
+  [capture-periodic] freeze=5ms shot=159ms unfreeze=5ms saved=True
+  Frame 180 saved (frame_179.jpg, t=405.8s)
+  [capture-periodic] freeze=4ms shot=136ms unfreeze=5ms saved=True
+  [capture-loop] iter=3400 t=406.8s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=5
+  Frame 181 saved (frame_180.jpg, t=408.1s)
+  [capture-periodic] freeze=4ms shot=132ms unfreeze=4ms saved=True
+  Frame 182 saved (frame_181.jpg, t=410.4s)
+  [capture-periodic] freeze=4ms shot=142ms unfreeze=7ms saved=True
+  [capture-loop] iter=3450 t=412.7s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=5
+  Frame 183 saved (frame_182.jpg, t=412.7s)
+  [capture-periodic] freeze=5ms shot=130ms unfreeze=4ms saved=True
+  Frame 184 saved (frame_183.jpg, t=415.0s)
+  [capture-periodic] freeze=4ms shot=161ms unfreeze=4ms saved=True
+  Frame 185 saved (frame_184.jpg, t=417.2s)
+  [capture-periodic] freeze=4ms shot=146ms unfreeze=3ms saved=True
+  [capture-loop] iter=3500 t=418.8s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=5
+  Frame 186 saved (frame_185.jpg, t=419.6s)
+  [capture-periodic] freeze=5ms shot=135ms unfreeze=4ms saved=True
+  Frame 187 saved (frame_186.jpg, t=421.8s)
+  [capture-periodic] freeze=5ms shot=149ms unfreeze=5ms saved=True
+  Frame 188 saved (frame_187.jpg, t=424.1s)
+  [capture-periodic] freeze=5ms shot=146ms unfreeze=5ms saved=True
+  [capture-loop] iter=3550 t=424.8s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=5
+  Frame 189 saved (frame_188.jpg, t=426.4s)
+  [capture-periodic] freeze=5ms shot=136ms unfreeze=5ms saved=True
+  Frame 190 saved (frame_189.jpg, t=428.6s)
+  [capture-periodic] freeze=5ms shot=132ms unfreeze=5ms saved=True
+  [capture-loop] iter=3600 t=430.6s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=5
+  Frame 191 saved (frame_190.jpg, t=430.9s)
+  [capture-periodic] freeze=6ms shot=137ms unfreeze=5ms saved=True
+  Frame 192 saved (frame_191.jpg, t=433.1s)
+  [capture-periodic] freeze=5ms shot=137ms unfreeze=5ms saved=True
+  Frame 193 saved (frame_192.jpg, t=435.4s)
+  [capture-periodic] freeze=5ms shot=133ms unfreeze=5ms saved=True
+  [capture-loop] iter=3650 t=436.7s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=5
+  Frame 194 saved (frame_193.jpg, t=437.7s)
+  [capture-periodic] freeze=5ms shot=155ms unfreeze=5ms saved=True
+  Frame 195 saved (frame_194.jpg, t=440.0s)
+  [capture-periodic] freeze=5ms shot=119ms unfreeze=5ms saved=True
+  Frame 196 saved (frame_195.jpg, t=442.3s)
+  [capture-periodic] freeze=5ms shot=133ms unfreeze=5ms saved=True
+  [capture-loop] iter=3700 t=442.8s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=5
+  Frame 197 saved (frame_196.jpg, t=444.5s)
+  [capture-periodic] freeze=5ms shot=131ms unfreeze=5ms saved=True
+  Frame 198 saved (frame_197.jpg, t=446.8s)
+  [capture-periodic] freeze=5ms shot=160ms unfreeze=5ms saved=True
+  [capture-loop] iter=3750 t=448.6s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=5
+  Frame 199 saved (frame_198.jpg, t=449.1s)
+  [capture-periodic] freeze=5ms shot=141ms unfreeze=9ms saved=True
+  Frame 200 saved (frame_199.jpg, t=451.4s)
+  [capture-periodic] freeze=5ms shot=135ms unfreeze=8ms saved=True
+  Frame 201 saved (frame_200.jpg, t=453.6s)
+  [capture-periodic] freeze=6ms shot=143ms unfreeze=8ms saved=True
+  [capture-loop] iter=3800 t=454.7s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=4
+  Frame 202 saved (frame_201.jpg, t=455.9s)
+  [capture-periodic] freeze=5ms shot=156ms unfreeze=4ms saved=True
+  Frame 203 saved (frame_202.jpg, t=458.2s)
+  [capture-periodic] freeze=5ms shot=146ms unfreeze=5ms saved=True
+  Frame 204 saved (frame_203.jpg, t=460.4s)
+  [capture-periodic] freeze=4ms shot=140ms unfreeze=4ms saved=True
+  [capture-loop] iter=3850 t=460.7s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=3
+  Frame 205 saved (frame_204.jpg, t=462.7s)
+  [capture-periodic] freeze=4ms shot=145ms unfreeze=4ms saved=True
+  Frame 206 saved (frame_205.jpg, t=465.0s)
+  [capture-periodic] freeze=4ms shot=140ms unfreeze=5ms saved=True
+  [capture-loop] iter=3900 t=466.6s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=5
+  Frame 207 saved (frame_206.jpg, t=467.3s)
+  [capture-periodic] freeze=4ms shot=143ms unfreeze=4ms saved=True
+  Frame 208 saved (frame_207.jpg, t=469.5s)
+  [capture-periodic] freeze=6ms shot=144ms unfreeze=4ms saved=True
+  Frame 209 saved (frame_208.jpg, t=471.9s)
+  [capture-periodic] freeze=4ms shot=142ms unfreeze=4ms saved=True
+  [capture-loop] iter=3950 t=472.7s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=4
+  Frame 210 saved (frame_209.jpg, t=474.1s)
+  [capture-periodic] freeze=4ms shot=131ms unfreeze=4ms saved=True
+  Frame 211 saved (frame_210.jpg, t=476.4s)
+  [capture-periodic] freeze=6ms shot=126ms unfreeze=4ms saved=True
+  [capture-loop] iter=4000 t=478.6s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=4
+  Frame 212 saved (frame_211.jpg, t=478.7s)
+  [capture-periodic] freeze=5ms shot=144ms unfreeze=5ms saved=True
+  Frame 213 saved (frame_212.jpg, t=480.9s)
+  [capture-periodic] freeze=5ms shot=152ms unfreeze=5ms saved=True
+  Frame 214 saved (frame_213.jpg, t=483.2s)
+  [capture-periodic] freeze=6ms shot=137ms unfreeze=6ms saved=True
+  [capture-loop] iter=4050 t=484.6s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=4
+  Frame 215 saved (frame_214.jpg, t=485.4s)
+  [capture-periodic] freeze=4ms shot=131ms unfreeze=5ms saved=True
+  Frame 216 saved (frame_215.jpg, t=487.7s)
+  [capture-periodic] freeze=4ms shot=140ms unfreeze=5ms saved=True
+  Frame 217 saved (frame_216.jpg, t=489.9s)
+  [capture-periodic] freeze=5ms shot=121ms unfreeze=5ms saved=True
+  [capture-loop] iter=4100 t=490.5s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=4
+  Frame 218 saved (frame_217.jpg, t=492.2s)
+  [capture-periodic] freeze=4ms shot=138ms unfreeze=3ms saved=True
+  Frame 219 saved (frame_218.jpg, t=494.4s)
+  [capture-periodic] freeze=4ms shot=140ms unfreeze=5ms saved=True
+  [capture-loop] iter=4150 t=496.4s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=5
+  Frame 220 saved (frame_219.jpg, t=496.7s)
+  [capture-periodic] freeze=6ms shot=142ms unfreeze=5ms saved=True
+  Frame 221 saved (frame_220.jpg, t=498.9s)
+  [capture-periodic] freeze=4ms shot=145ms unfreeze=5ms saved=True
+  Frame 222 saved (frame_221.jpg, t=501.2s)
+  [capture-periodic] freeze=5ms shot=130ms unfreeze=5ms saved=True
+  [capture-loop] iter=4200 t=502.4s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=4
+  Frame 223 saved (frame_222.jpg, t=503.5s)
+  [capture-periodic] freeze=4ms shot=152ms unfreeze=5ms saved=True
+  Frame 224 saved (frame_223.jpg, t=505.8s)
+  [capture-periodic] freeze=4ms shot=151ms unfreeze=5ms saved=True
+  Frame 225 saved (frame_224.jpg, t=508.0s)
+  [capture-periodic] freeze=5ms shot=131ms unfreeze=5ms saved=True
+  [capture-loop] iter=4250 t=508.4s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=5
+  Frame 226 saved (frame_225.jpg, t=510.2s)
+  [capture-periodic] freeze=5ms shot=140ms unfreeze=5ms saved=True
+  Frame 227 saved (frame_226.jpg, t=512.5s)
+  [capture-periodic] freeze=5ms shot=140ms unfreeze=5ms saved=True
+  [capture-loop] iter=4300 t=514.2s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=5
+  Frame 228 saved (frame_227.jpg, t=514.8s)
+  [capture-periodic] freeze=4ms shot=135ms unfreeze=4ms saved=True
+  Frame 229 saved (frame_228.jpg, t=517.0s)
+  [capture-periodic] freeze=4ms shot=122ms unfreeze=5ms saved=True
+  Frame 230 saved (frame_229.jpg, t=519.2s)
+  [capture-periodic] freeze=5ms shot=137ms unfreeze=5ms saved=True
+  [capture-loop] iter=4350 t=520.2s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=4
+  Frame 231 saved (frame_230.jpg, t=521.5s)
+  [capture-periodic] freeze=4ms shot=139ms unfreeze=5ms saved=True
+  Frame 232 saved (frame_231.jpg, t=523.7s)
+  [capture-periodic] freeze=4ms shot=141ms unfreeze=4ms saved=True
+  [capture-loop] iter=4400 t=526.0s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=4
+  Frame 233 saved (frame_232.jpg, t=526.0s)
+  [capture-periodic] freeze=5ms shot=146ms unfreeze=4ms saved=True
+  Frame 234 saved (frame_233.jpg, t=528.3s)
+  [capture-periodic] freeze=5ms shot=140ms unfreeze=4ms saved=True
+  Frame 235 saved (frame_234.jpg, t=530.6s)
+  [capture-periodic] freeze=4ms shot=129ms unfreeze=5ms saved=True
+  [capture-loop] iter=4450 t=532.1s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=4
+  Frame 236 saved (frame_235.jpg, t=532.9s)
+  [capture-periodic] freeze=5ms shot=130ms unfreeze=4ms saved=True
+  Frame 237 saved (frame_236.jpg, t=535.1s)
+  [capture-periodic] freeze=5ms shot=149ms unfreeze=5ms saved=True
+  Frame 238 saved (frame_237.jpg, t=537.4s)
+  [capture-periodic] freeze=4ms shot=134ms unfreeze=4ms saved=True
+  [capture-loop] iter=4500 t=538.2s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=4
+  Frame 239 saved (frame_238.jpg, t=539.7s)
+  [capture-periodic] freeze=4ms shot=139ms unfreeze=4ms saved=True
+  Frame 240 saved (frame_239.jpg, t=541.9s)
+  [capture-periodic] freeze=4ms shot=147ms unfreeze=6ms saved=True
+  [capture-loop] iter=4550 t=544.0s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=5
+  Frame 241 saved (frame_240.jpg, t=544.2s)
+  [capture-periodic] freeze=4ms shot=131ms unfreeze=4ms saved=True
+  Frame 242 saved (frame_241.jpg, t=546.4s)
+  [capture-periodic] freeze=5ms shot=143ms unfreeze=5ms saved=True
+  Frame 243 saved (frame_242.jpg, t=548.8s)
+  [capture-periodic] freeze=4ms shot=137ms unfreeze=4ms saved=True
+  [capture-loop] iter=4600 t=550.0s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=4
+  Frame 244 saved (frame_243.jpg, t=551.0s)
+  [capture-periodic] freeze=4ms shot=164ms unfreeze=4ms saved=True
+  Frame 245 saved (frame_244.jpg, t=553.3s)
+  [capture-periodic] freeze=5ms shot=140ms unfreeze=4ms saved=True
+  Frame 246 saved (frame_245.jpg, t=555.5s)
+  [capture-periodic] freeze=4ms shot=142ms unfreeze=5ms saved=True
+  [capture-loop] iter=4650 t=556.1s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=4
+  Frame 247 saved (frame_246.jpg, t=557.9s)
+  [capture-periodic] freeze=4ms shot=123ms unfreeze=4ms saved=True
+  Frame 248 saved (frame_247.jpg, t=560.1s)
+  [capture-periodic] freeze=4ms shot=137ms unfreeze=4ms saved=True
+  [capture-loop] iter=4700 t=561.9s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=4
+  Frame 249 saved (frame_248.jpg, t=562.3s)
+  [capture-periodic] freeze=5ms shot=136ms unfreeze=4ms saved=True
+  Frame 250 saved (frame_249.jpg, t=564.6s)
+  [capture-periodic] freeze=6ms shot=135ms unfreeze=5ms saved=True
+  Frame 251 saved (frame_250.jpg, t=566.9s)
+  [capture-periodic] freeze=5ms shot=130ms unfreeze=5ms saved=True
+  [capture-loop] iter=4750 t=568.0s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=5
+  Frame 252 saved (frame_251.jpg, t=569.2s)
+  [capture-periodic] freeze=5ms shot=150ms unfreeze=5ms saved=True
+  Frame 253 saved (frame_252.jpg, t=571.4s)
+  [capture-periodic] freeze=4ms shot=135ms unfreeze=8ms saved=True
+  Frame 254 saved (frame_253.jpg, t=573.8s)
+  [capture-periodic] freeze=4ms shot=135ms unfreeze=5ms saved=True
+  [capture-loop] iter=4800 t=574.1s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=3
+  Frame 255 saved (frame_254.jpg, t=576.0s)
+  [capture-periodic] freeze=5ms shot=142ms unfreeze=3ms saved=True
+  Frame 256 saved (frame_255.jpg, t=578.3s)
+  [capture-periodic] freeze=5ms shot=128ms unfreeze=3ms saved=True
+  [capture-loop] iter=4850 t=579.9s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=5
+  Frame 257 saved (frame_256.jpg, t=580.6s)
+  [capture-periodic] freeze=4ms shot=126ms unfreeze=3ms saved=True
+  Frame 258 saved (frame_257.jpg, t=582.8s)
+  [capture-periodic] freeze=5ms shot=154ms unfreeze=4ms saved=True
+  Frame 259 saved (frame_258.jpg, t=585.1s)
+  [capture-periodic] freeze=4ms shot=160ms unfreeze=5ms saved=True
+  [capture-loop] iter=4900 t=586.0s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=4
+  Frame 260 saved (frame_259.jpg, t=587.4s)
+  [capture-periodic] freeze=6ms shot=128ms unfreeze=4ms saved=True
+  Frame 261 saved (frame_260.jpg, t=589.7s)
+  [capture-periodic] freeze=4ms shot=132ms unfreeze=4ms saved=True
+  [capture-loop] iter=4950 t=591.8s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=4
+  Frame 262 saved (frame_261.jpg, t=591.9s)
+  [capture-periodic] freeze=4ms shot=133ms unfreeze=5ms saved=True
+  Frame 263 saved (frame_262.jpg, t=594.1s)
+  [capture-periodic] freeze=4ms shot=145ms unfreeze=5ms saved=True
+  Frame 264 saved (frame_263.jpg, t=596.4s)
+  [capture-periodic] freeze=5ms shot=152ms unfreeze=5ms saved=True
+  [capture-loop] iter=5000 t=597.8s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=5
+  Frame 265 saved (frame_264.jpg, t=598.7s)
+  [capture-periodic] freeze=6ms shot=147ms unfreeze=5ms saved=True
+  Frame 266 saved (frame_265.jpg, t=601.0s)
+  [capture-periodic] freeze=4ms shot=146ms unfreeze=4ms saved=True
+  Frame 267 saved (frame_266.jpg, t=603.3s)
+  [capture-periodic] freeze=4ms shot=140ms unfreeze=5ms saved=True
+  [capture-loop] iter=5050 t=604.0s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=4
+  Frame 268 saved (frame_267.jpg, t=605.6s)
+  [capture-periodic] freeze=4ms shot=134ms unfreeze=4ms saved=True
+  Frame 269 saved (frame_268.jpg, t=607.8s)
+  [capture-periodic] freeze=4ms shot=134ms unfreeze=5ms saved=True
+  [capture-loop] iter=5100 t=609.8s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=5
+  Frame 270 saved (frame_269.jpg, t=610.2s)
+  [capture-periodic] freeze=6ms shot=155ms unfreeze=3ms saved=True
+  Frame 271 saved (frame_270.jpg, t=612.4s)
+  [capture-periodic] freeze=4ms shot=128ms unfreeze=2ms saved=True
+  Frame 272 saved (frame_271.jpg, t=614.7s)
+  [capture-periodic] freeze=4ms shot=141ms unfreeze=2ms saved=True
+  [capture-loop] iter=5150 t=615.8s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=5
+  Frame 273 saved (frame_272.jpg, t=616.9s)
+  [capture-periodic] freeze=4ms shot=148ms unfreeze=2ms saved=True
+  Frame 274 saved (frame_273.jpg, t=619.2s)
+  [capture-periodic] freeze=4ms shot=135ms unfreeze=5ms saved=True
+  Frame 275 saved (frame_274.jpg, t=621.5s)
+  [capture-periodic] freeze=4ms shot=125ms unfreeze=2ms saved=True
+  [capture-loop] iter=5200 t=621.9s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=3
+  Frame 276 saved (frame_275.jpg, t=623.7s)
+  [capture-periodic] freeze=4ms shot=127ms unfreeze=4ms saved=True
+  Frame 277 saved (frame_276.jpg, t=626.0s)
+  [capture-periodic] freeze=4ms shot=142ms unfreeze=4ms saved=True
+  [capture-loop] iter=5250 t=627.7s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=5
+  Frame 278 saved (frame_277.jpg, t=628.2s)
+  [capture-periodic] freeze=4ms shot=128ms unfreeze=4ms saved=True
+  Frame 279 saved (frame_278.jpg, t=630.5s)
+  [capture-periodic] freeze=5ms shot=114ms unfreeze=4ms saved=True
+  Frame 280 saved (frame_279.jpg, t=632.7s)
+  [capture-periodic] freeze=6ms shot=153ms unfreeze=5ms saved=True
+  [capture-loop] iter=5300 t=633.7s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=4
+  Frame 281 saved (frame_280.jpg, t=635.0s)
+  [capture-periodic] freeze=4ms shot=152ms unfreeze=3ms saved=True
+  Frame 282 saved (frame_281.jpg, t=637.3s)
+  [capture-periodic] freeze=4ms shot=124ms unfreeze=3ms saved=True
+  [capture-loop] iter=5350 t=639.6s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=3
+  Frame 283 saved (frame_282.jpg, t=639.5s)
+  [capture-periodic] freeze=3ms shot=157ms unfreeze=4ms saved=True
+  Frame 284 saved (frame_283.jpg, t=641.8s)
+  [capture-periodic] freeze=3ms shot=138ms unfreeze=4ms saved=True
+  Frame 285 saved (frame_284.jpg, t=644.0s)
+  [capture-periodic] freeze=4ms shot=142ms unfreeze=4ms saved=True
+  [capture-loop] iter=5400 t=645.5s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=4
+  Frame 286 saved (frame_285.jpg, t=646.3s)
+  [capture-periodic] freeze=4ms shot=139ms unfreeze=3ms saved=True
+  Frame 287 saved (frame_286.jpg, t=648.5s)
+  [capture-periodic] freeze=4ms shot=133ms unfreeze=4ms saved=True
+  Frame 288 saved (frame_287.jpg, t=650.8s)
+  [capture-periodic] freeze=4ms shot=122ms unfreeze=3ms saved=True
+  [capture-loop] iter=5450 t=651.5s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=4
+  Frame 289 saved (frame_288.jpg, t=653.0s)
+  [capture-periodic] freeze=4ms shot=121ms unfreeze=3ms saved=True
+  Frame 290 saved (frame_289.jpg, t=655.2s)
+  [capture-periodic] freeze=4ms shot=137ms unfreeze=4ms saved=True
+  [capture-loop] iter=5500 t=657.3s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=6
+  Frame 291 saved (frame_290.jpg, t=657.5s)
+  [capture-periodic] freeze=4ms shot=143ms unfreeze=5ms saved=True
+  [ComfyUI] ViT.forward OUT:   features=[torch.float32 [1, 1024, 72, 72]]
+  [ComfyUI] FPN_Neck.forward after trunk:   trunk_out=[torch.float32 [1, 1024, 72, 72]]
+  Frame 292 saved (frame_291.jpg, t=659.8s)
+  [capture-periodic] freeze=5ms shot=142ms unfreeze=3ms saved=True
+  Frame 293 saved (frame_292.jpg, t=662.0s)
+  [capture-periodic] freeze=4ms shot=130ms unfreeze=3ms saved=True
+  [capture-loop] iter=5550 t=663.3s state={'complete': False, 'error': None, 'executedCount': 1, 'wsState': 1} eval_ms=4
+  [ComfyUI] FPN_Neck.forward OUT:   sam3_out=[torch.float32 [1, 256, 288, 288], torch.float32 [1, 256, 144, 144], torch.float32 [1, 256, 72, 72], torch.float32 [1, 256, 36, 36]]   sam3_pos=[torch.float32 [1, 256, 288, 288], torch.float32 [1, 256, 144, 144], torch.float32 [1, 256, 72, 72], torch.float32 [1, 256, 36, 36]]
+  [ComfyUI] Backbone.forward_image OUT:   vision_features=torch.float32 [1, 256, 72, 72] min=-4.8498 max=5.0381   backbone_fpn=[torch.float32 [1, 256, 288, 288], torch.float32 [1, 256, 144, 144], torch.float32 [1, 256, 72, 72]]
+  [ComfyUI] !!! Exception during processing !!! indices should be either on cpu or on the same device as the indexed tensor (cpu)
+  [ComfyUI] Traceback (most recent call last):
+  [ComfyUI]   File "/home/andrea/workspaces/SAM3-2308/ComfyUI/execution.py", line 524, in execute
+  [ComfyUI]     output_data, output_ui, has_subgraph, has_pending_tasks = await get_output_data(prompt_id, unique_id, obj, input_data_all, execution_block_cb=execution_block_cb, pre_execute_cb=pre_execute_cb, v3_data=v3_data)
+  [ComfyUI]   File "/home/andrea/workspaces/SAM3-2308/ComfyUI/execution.py", line 333, in get_output_data
+  [ComfyUI]     return_values = await _async_map_node_over_list(prompt_id, unique_id, obj, input_data_all, obj.FUNCTION, allow_interrupt=True, execution_block_cb=execution_block_cb, pre_execute_cb=pre_execute_cb, v3_data=v3_data)
+  [ComfyUI]   File "/home/andrea/workspaces/SAM3-2308/ComfyUI/execution.py", line 307, in _async_map_node_over_list
+  [ComfyUI]     await process_inputs(input_dict, i)
+  [ComfyUI]   File "/home/andrea/workspaces/SAM3-2308/ComfyUI/execution.py", line 295, in process_inputs
+  [ComfyUI]     result = f(**inputs)
+  [ComfyUI]   File "/home/andrea/workspaces/SAM3-2308/ComfyUI/comfy_api/internal/__init__.py", line 149, in wrapped_func
+  [ComfyUI]     return method(locked_class, **inputs)
+  [ComfyUI]   File "/home/andrea/workspaces/SAM3-2308/ComfyUI/comfy_api/latest/_io.py", line 1764, in EXECUTE_NORMALIZED
+  [ComfyUI]     to_return = cls.execute(*args, **kwargs)
+  [ComfyUI]   File "/home/andrea/workspaces/SAM3-2308/ComfyUI/custom_nodes/ComfyUI-SAM3/nodes/sam3_video_nodes.py", line 460, in execute
+  [ComfyUI]     inference_state = get_inference_state(sam3_model, video_state)
+  [ComfyUI]   File "/home/andrea/workspaces/SAM3-2308/ComfyUI/custom_nodes/ComfyUI-SAM3/nodes/inference_reconstructor.py", line 266, in get_inference_state
+  [ComfyUI]     return InferenceReconstructor.get_instance().get_inference_state(model, video_state)
+  [ComfyUI]   File "/home/andrea/workspaces/SAM3-2308/ComfyUI/custom_nodes/ComfyUI-SAM3/nodes/inference_reconstructor.py", line 105, in get_inference_state
+  [ComfyUI]     self._apply_prompt(model, video_state.session_uuid, prompt)
+  [ComfyUI]   File "/home/andrea/workspaces/SAM3-2308/ComfyUI/custom_nodes/ComfyUI-SAM3/nodes/inference_reconstructor.py", line 141, in _apply_prompt
+  [ComfyUI]     model.add_prompt(
+  [ComfyUI]   File "/home/andrea/workspaces/SAM3-2308/ComfyUI/custom_nodes/ComfyUI-SAM3/nodes/sam3/predictor.py", line 189, in add_prompt
+  [ComfyUI]     frame_idx, outputs = self.model.add_prompt(
+  [ComfyUI]   File "/home/andrea/workspaces/SAM3-2308/.venv/lib/python3.10/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+  [ComfyUI]     return func(*args, **kwargs)
+  [ComfyUI]   File "/home/andrea/workspaces/SAM3-2308/ComfyUI/custom_nodes/ComfyUI-SAM3/nodes/sam3/model.py", line 8927, in add_prompt
+  [ComfyUI]     return self.add_tracker_new_points(
+  [ComfyUI]   File "/home/andrea/workspaces/SAM3-2308/.venv/lib/python3.10/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+  [ComfyUI]     return func(*args, **kwargs)
+  [ComfyUI]   File "/home/andrea/workspaces/SAM3-2308/ComfyUI/custom_nodes/ComfyUI-SAM3/nodes/sam3/model.py", line 8972, in add_tracker_new_points
+  [ComfyUI]     self._prepare_backbone_feats(inference_state, frame_idx, reverse=False)
+  [ComfyUI]   File "/home/andrea/workspaces/SAM3-2308/ComfyUI/custom_nodes/ComfyUI-SAM3/nodes/sam3/model.py", line 8896, in _prepare_backbone_feats
+  [ComfyUI]     _ = self.run_backbone_and_detection(
+  [ComfyUI]   File "/home/andrea/workspaces/SAM3-2308/ComfyUI/custom_nodes/ComfyUI-SAM3/nodes/sam3/model.py", line 6523, in run_backbone_and_detection
+  [ComfyUI]     sam3_image_out, _ = self.detector.forward_video_grounding_multigpu(
+  [ComfyUI]   File "/home/andrea/workspaces/SAM3-2308/ComfyUI/custom_nodes/ComfyUI-SAM3/nodes/sam3/model.py", line 4044, in forward_video_grounding_multigpu
+  [ComfyUI]     self._build_multigpu_buffer_next_chunk(
+  [ComfyUI]   File "/home/andrea/workspaces/SAM3-2308/ComfyUI/custom_nodes/ComfyUI-SAM3/nodes/sam3/model.py", line 4121, in _build_multigpu_buffer_next_chunk
+  [ComfyUI]     out_local = self.forward_grounding(
+  [ComfyUI]   File "/home/andrea/workspaces/SAM3-2308/ComfyUI/custom_nodes/ComfyUI-SAM3/nodes/sam3/model.py", line 3784, in forward_grounding
+  [ComfyUI]     prompt, prompt_mask, backbone_out = self._encode_prompt(
+  [ComfyUI]   File "/home/andrea/workspaces/SAM3-2308/ComfyUI/custom_nodes/ComfyUI-SAM3/nodes/sam3/model.py", line 3516, in _encode_prompt
+  [ComfyUI]     feat_tuple = self._get_img_feats(backbone_out, find_input.img_ids)
+  [ComfyUI]   File "/home/andrea/workspaces/SAM3-2308/ComfyUI/custom_nodes/ComfyUI-SAM3/nodes/sam3/model.py", line 3499, in _get_img_feats
+  [ComfyUI]     return self._get_img_feats(backbone_out, img_ids=img_ids)
+  [ComfyUI]   File "/home/andrea/workspaces/SAM3-2308/ComfyUI/custom_nodes/ComfyUI-SAM3/nodes/sam3/model.py", line 3465, in _get_img_feats
+  [ComfyUI]     img_ids = backbone_out["id_mapping"][img_ids]
+  [ComfyUI] RuntimeError: indices should be either on cpu or on the same device as the indexed tensor (cpu)
+  [ComfyUI] 
+  [ComfyUI] Prompt executed in 00:11:04
+  Frame 294 saved (frame_293.jpg, t=664.2s)
+  [capture-periodic] freeze=5ms shot=229ms unfreeze=5ms saved=True
+  Execution complete (t=664.6s)
+  Execution error: {'prompt_id': 'fc3a647e-5a29-444a-be51-d66dc7b58dbc', 'node_id': '32', 'node_type': 'SAM3Propagate', 'executed': ['9', '30', '27', '28'], 'exception_message': 'indices should be either on cpu or on the same device as the indexed tensor (cpu)\n', 'exception_type': 'RuntimeError', 'traceback': ['  File "/home/andrea/workspaces/SAM3-2308/ComfyUI/execution.py", line 524, in execute\n    output_data, output_ui, has_subgraph, has_pending_tasks = await get_output_data(prompt_id, unique_id, obj, input_data_all, execution_block_cb=execution_block_cb, pre_execute_cb=pre_execute_cb, v3_data=v3_data)\n', '  File "/home/andrea/workspaces/SAM3-2308/ComfyUI/execution.py", line 333, in get_output_data\n    return_values = await _async_map_node_over_list(prompt_id, unique_id, obj, input_data_all, obj.FUNCTION, allow_interrupt=True, execution_block_cb=execution_block_cb, pre_execute_cb=pre_execute_cb, v3_data=v3_data)\n', '  File "/home/andrea/workspaces/SAM3-2308/ComfyUI/execution.py", line 307, in _async_map_node_over_list\n    await process_inputs(input_dict, i)\n', '  File "/home/andrea/workspaces/SAM3-2308/ComfyUI/execution.py", line 295, in process_inputs\n    result = f(**inputs)\n', '  File "/home/andrea/workspaces/SAM3-2308/ComfyUI/comfy_api/internal/__init__.py", line 149, in wrapped_func\n    return method(locked_class, **inputs)\n', '  File "/home/andrea/workspaces/SAM3-2308/ComfyUI/comfy_api/latest/_io.py", line 1764, in EXECUTE_NORMALIZED\n    to_return = cls.execute(*args, **kwargs)\n', '  File "/home/andrea/workspaces/SAM3-2308/ComfyUI/custom_nodes/ComfyUI-SAM3/nodes/sam3_video_nodes.py", line 460, in execute\n    inference_state = get_inference_state(sam3_model, video_state)\n', '  File "/home/andrea/workspaces/SAM3-2308/ComfyUI/custom_nodes/ComfyUI-SAM3/nodes/inference_reconstructor.py", line 266, in get_inference_state\n    return InferenceReconstructor.get_instance().get_inference_state(model, video_state)\n', '  File "/home/andrea/workspaces/SAM3-2308/ComfyUI/custom_nodes/ComfyUI-SAM3/nodes/inference_reconstructor.py", line 105, in get_inference_state\n    self._apply_prompt(model, video_state.session_uuid, prompt)\n', '  File "/home/andrea/workspaces/SAM3-2308/ComfyUI/custom_nodes/ComfyUI-SAM3/nodes/inference_reconstructor.py", line 141, in _apply_prompt\n    model.add_prompt(\n', '  File "/home/andrea/workspaces/SAM3-2308/ComfyUI/custom_nodes/ComfyUI-SAM3/nodes/sam3/predictor.py", line 189, in add_prompt\n    frame_idx, outputs = self.model.add_prompt(\n', '  File "/home/andrea/workspaces/SAM3-2308/.venv/lib/python3.10/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context\n    return func(*args, **kwargs)\n', '  File "/home/andrea/workspaces/SAM3-2308/ComfyUI/custom_nodes/ComfyUI-SAM3/nodes/sam3/model.py", line 8927, in add_prompt\n    return self.add_tracker_new_points(\n', '  File "/home/andrea/workspaces/SAM3-2308/.venv/lib/python3.10/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context\n    return func(*args, **kwargs)\n', '  File "/home/andrea/workspaces/SAM3-2308/ComfyUI/custom_nodes/ComfyUI-SAM3/nodes/sam3/model.py", line 8972, in add_tracker_new_points\n    self._prepare_backbone_feats(inference_state, frame_idx, reverse=False)\n', '  File "/home/andrea/workspaces/SAM3-2308/ComfyUI/custom_nodes/ComfyUI-SAM3/nodes/sam3/model.py", line 8896, in _prepare_backbone_feats\n    _ = self.run_backbone_and_detection(\n', '  File "/home/andrea/workspaces/SAM3-2308/ComfyUI/custom_nodes/ComfyUI-SAM3/nodes/sam3/model.py", line 6523, in run_backbone_and_detection\n    sam3_image_out, _ = self.detector.forward_video_grounding_multigpu(\n', '  File "/home/andrea/workspaces/SAM3-2308/ComfyUI/custom_nodes/ComfyUI-SAM3/nodes/sam3/model.py", line 4044, in forward_video_grounding_multigpu\n    self._build_multigpu_buffer_next_chunk(\n', '  File "/home/andrea/workspaces/SAM3-2308/ComfyUI/custom_nodes/ComfyUI-SAM3/nodes/sam3/model.py", line 4121, in _build_multigpu_buffer_next_chunk\n    out_local = self.forward_grounding(\n', '  File "/home/andrea/workspaces/SAM3-2308/ComfyUI/custom_nodes/ComfyUI-SAM3/nodes/sam3/model.py", line 3784, in forward_grounding\n    prompt, prompt_mask, backbone_out = self._encode_prompt(\n', '  File "/home/andrea/workspaces/SAM3-2308/ComfyUI/custom_nodes/ComfyUI-SAM3/nodes/sam3/model.py", line 3516, in _encode_prompt\n    feat_tuple = self._get_img_feats(backbone_out, find_input.img_ids)\n', '  File "/home/andrea/workspaces/SAM3-2308/ComfyUI/custom_nodes/ComfyUI-SAM3/nodes/sam3/model.py", line 3499, in _get_img_feats\n    return self._get_img_feats(backbone_out, img_ids=img_ids)\n', '  File "/home/andrea/workspaces/SAM3-2308/ComfyUI/custom_nodes/ComfyUI-SAM3/nodes/sam3/model.py", line 3465, in _get_img_feats\n    img_ids = backbone_out["id_mapping"][img_ids]\n'], 'current_inputs': {'start_frame': [0], 'end_frame': [-1], 'direction': ['forward'], 'sam3_model': ['</home/andrea/workspaces/SAM3-2308/ComfyUI/custom_nodes/ComfyUI-SAM3.nodes.sam3_model_patcher.SAM3UnifiedModel object at 0x7a4208b4f820>'], 'video_state': ["SAM3VideoState(session_uuid='273b58a5-2069-4e41-a74e-24e0c0276a58', temp_dir='/tmp/sam3_273b58a5__xp52d9i', num_frames=30, height=544, width=960, config=VideoConfig(score_threshold_detection=0.3, new_det_thresh=0.4, fill_hole_area=16, assoc_iou_thresh=0.1, det_nms_thresh=0.1, hotstart_unmatch_thresh=8, hotstart_dup_thresh=8, init_trk_keep_alive=30, hotstart_delay=15, decrease_keep_alive_empty=False, suppress_unmatched_globally=False), prompts=(VideoPrompt(frame_idx=0, prompt_type='point', obj_id=1, data=(((0.38107258850429115, 0.15094459502434338), (0.405779333510521, 0.3307995326922488), (0.43048607851675086, 0.09644309876134173)), (1, 1, 1))),))"]}, 'current_outputs': ['9', '24', '30', '25', '15', '21', '13', '32', '28', '14', '27'], 'timestamp': 1773008519563}
+    Status: FAILED
+    Error: Workflow execution failed: {'prompt_id': 'fc3a647e-5a29-444a-be51-d66dc7b58dbc', 'node_id': '32', 'node_type': 'SAM3Propagate', 'executed': ['9', '30', '27', '28'], 'exception_message': 'indices should be either on cpu or on the same device as the indexed tensor (cpu)\n', 'exception_type': 'RuntimeError', 'traceback': ['  File "/home/andrea/workspaces/SAM3-2308/ComfyUI/execution.py", line 524, in execute\n    output_data, output_ui, has_subgraph, has_pending_tasks = await get_output_data(prompt_id, unique_id, obj, input_data_all, execution_block_cb=execution_block_cb, pre_execute_cb=pre_execute_cb, v3_data=v3_data)\n', '  File "/home/andrea/workspaces/SAM3-2308/ComfyUI/execution.py", line 333, in get_output_data\n    return_values = await _async_map_node_over_list(prompt_id, unique_id, obj, input_data_all, obj.FUNCTION, allow_interrupt=True, execution_block_cb=execution_block_cb, pre_execute_cb=pre_execute_cb, v3_data=v3_data)\n', '  File "/home/andrea/workspaces/SAM3-2308/ComfyUI/execution.py", line 307, in _async_map_node_over_list\n    await process_inputs(input_dict, i)\n', '  File "/home/andrea/workspaces/SAM3-2308/ComfyUI/execution.py", line 295, in process_inputs\n    result = f(**inputs)\n', '  File "/home/andrea/workspaces/SAM3-2308/ComfyUI/comfy_api/internal/__init__.py", line 149, in wrapped_func\n    return method(locked_class, **inputs)\n', '  File "/home/andrea/workspaces/SAM3-2308/ComfyUI/comfy_api/latest/_io.py", line 1764, in EXECUTE_NORMALIZED\n    to_return = cls.execute(*args, **kwargs)\n', '  File "/home/andrea/workspaces/SAM3-2308/ComfyUI/custom_nodes/ComfyUI-SAM3/nodes/sam3_video_nodes.py", line 460, in execute\n    inference_state = get_inference_state(sam3_model, video_state)\n', '  File "/home/andrea/workspaces/SAM3-2308/ComfyUI/custom_nodes/ComfyUI-SAM3/nodes/inference_reconstructor.py", line 266, in get_inference_state\n    return InferenceReconstructor.get_instance().get_inference_state(model, video_state)\n', '  File "/home/andrea/workspaces/SAM3-2308/ComfyUI/custom_nodes/ComfyUI-SAM3/nodes/inference_reconstructor.py", line 105, in get_inference_state\n    self._apply_prompt(model, video_state.session_uuid, prompt)\n', '  File "/home/andrea/workspaces/SAM3-2308/ComfyUI/custom_nodes/ComfyUI-SAM3/nodes/inference_reconstructor.py", line 141, in _apply_prompt\n    model.add_prompt(\n', '  File "/home/andrea/workspaces/SAM3-2308/ComfyUI/custom_nodes/ComfyUI-SAM3/nodes/sam3/predictor.py", line 189, in add_prompt\n    frame_idx, outputs = self.model.add_prompt(\n', '  File "/home/andrea/workspaces/SAM3-2308/.venv/lib/python3.10/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context\n    return func(*args, **kwargs)\n', '  File "/home/andrea/workspaces/SAM3-2308/ComfyUI/custom_nodes/ComfyUI-SAM3/nodes/sam3/model.py", line 8927, in add_prompt\n    return self.add_tracker_new_points(\n', '  File "/home/andrea/workspaces/SAM3-2308/.venv/lib/python3.10/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context\n    return func(*args, **kwargs)\n', '  File "/home/andrea/workspaces/SAM3-2308/ComfyUI/custom_nodes/ComfyUI-SAM3/nodes/sam3/model.py", line 8972, in add_tracker_new_points\n    self._prepare_backbone_feats(inference_state, frame_idx, reverse=False)\n', '  File "/home/andrea/workspaces/SAM3-2308/ComfyUI/custom_nodes/ComfyUI-SAM3/nodes/sam3/model.py", line 8896, in _prepare_backbone_feats\n    _ = self.run_backbone_and_detection(\n', '  File "/home/andrea/workspaces/SAM3-2308/ComfyUI/custom_nodes/ComfyUI-SAM3/nodes/sam3/model.py", line 6523, in run_backbone_and_detection\n    sam3_image_out, _ = self.detector.forward_video_grounding_multigpu(\n', '  File "/home/andrea/workspaces/SAM3-2308/ComfyUI/custom_nodes/ComfyUI-SAM3/nodes/sam3/model.py", line 4044, in forward_video_grounding_multigpu\n    self._build_multigpu_buffer_next_chunk(\n', '  File "/home/andrea/workspaces/SAM3-2308/ComfyUI/custom_nodes/ComfyUI-SAM3/nodes/sam3/model.py", line 4121, in _build_multigpu_buffer_next_chunk\n    out_local = self.forward_grounding(\n', '  File "/home/andrea/workspaces/SAM3-2308/ComfyUI/custom_nodes/ComfyUI-SAM3/nodes/sam3/model.py", line 3784, in forward_grounding\n    prompt, prompt_mask, backbone_out = self._encode_prompt(\n', '  File "/home/andrea/workspaces/SAM3-2308/ComfyUI/custom_nodes/ComfyUI-SAM3/nodes/sam3/model.py", line 3516, in _encode_prompt\n    feat_tuple = self._get_img_feats(backbone_out, find_input.img_ids)\n', '  File "/home/andrea/workspaces/SAM3-2308/ComfyUI/custom_nodes/ComfyUI-SAM3/nodes/sam3/model.py", line 3499, in _get_img_feats\n    return self._get_img_feats(backbone_out, img_ids=img_ids)\n', '  File "/home/andrea/workspaces/SAM3-2308/ComfyUI/custom_nodes/ComfyUI-SAM3/nodes/sam3/model.py", line 3465, in _get_img_feats\n    img_ids = backbone_out["id_mapping"][img_ids]\n'], 'current_inputs': {'start_frame': [0], 'end_frame': [-1], 'direction': ['forward'], 'sam3_model': ['</home/andrea/workspaces/SAM3-2308/ComfyUI/custom_nodes/ComfyUI-SAM3.nodes.sam3_model_patcher.SAM3UnifiedModel object at 0x7a4208b4f820>'], 'video_state': ["SAM3VideoState(session_uuid='273b58a5-2069-4e41-a74e-24e0c0276a58', temp_dir='/tmp/sam3_273b58a5__xp52d9i', num_frames=30, height=544, width=960, config=VideoConfig(score_threshold_detection=0.3, new_det_thresh=0.4, fill_hole_area=16, assoc_iou_thresh=0.1, det_nms_thresh=0.1, hotstart_unmatch_thresh=8, hotstart_dup_thresh=8, init_trk_keep_alive=30, hotstart_delay=15, decrease_keep_alive_empty=False, suppress_unmatched_globally=False), prompts=(VideoPrompt(frame_idx=0, prompt_type='point', obj_id=1, data=(((0.38107258850429115, 0.15094459502434338), (0.405779333510521, 0.3307995326922488), (0.43048607851675086, 0.09644309876134173)), (1, 1, 1))),))"]}, 'current_outputs': ['9', '24', '30', '25', '15', '21', '13', '32', '28', '14', '27'], 'timestamp': 1773008519563}
+    Details: Workflow: /home/work/sam3/ComfyUI/custom_nodes/ComfyUI-SAM3/workflows/video_point_prompt.json
+Node error: SAM3Propagate

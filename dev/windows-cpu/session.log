@@ -1,0 +1,69 @@
+[00:00] Crash dump logging enabled: D:\a\ComfyUI-SAM3\ComfyUI-SAM3\comfy-test-logs\SAM3-2117\windows-cpu\crash_dump.log
+[00:00] 
+[00:00] [1/3] REGISTRATION
+[00:00] ----------------------------------------
+[00:00] [DEBUG] server=None, server_url=http://127.0.0.1:8188, api=None
+[00:00] 
+Connecting to existing server at http://127.0.0.1:8188...
+[00:00] Connecting to existing server at http://127.0.0.1:8188...
+[00:00] Connected to server! (attempt 1, 0.0s)
+[00:00] Checking for import errors in server logs...
+[00:00] No import errors detected
+[00:00] Found 708 registered nodes
+[00:00] [REGISTRATION] PASSED
+[00:00] 
+[00:00] [2/3] INSTANTIATION
+[00:00] ----------------------------------------
+[00:00] [DEBUG] server=<comfy_test.comfyui.server.ExternalComfyUIServer object at 0x0000023990A846E0>, server_url=http://127.0.0.1:8188, api=<comfy_test.comfyui.api.ComfyUIAPI object at 0x0000023990A84830>
+[00:00] Testing node constructors...
+[00:08] All 0 node(s) instantiated successfully!
+[00:08] [INSTANTIATION] PASSED
+[00:08] 
+[00:08] [3/3] EXECUTION
+[00:08] ----------------------------------------
+[00:08] [DEBUG] server=<comfy_test.comfyui.server.ExternalComfyUIServer object at 0x0000023990A846E0>, server_url=http://127.0.0.1:8188, api=<comfy_test.comfyui.api.ComfyUIAPI object at 0x0000023990A84830>
+[00:08] CPU runner - will execute 4 workflow(s)
+[00:08] Running 5 workflow(s) (all with videos)...
+[00:08] Starting headless browser...
+[00:09]   Downloading Mesa llvmpipe for Windows...
+[00:12]   Copied opengl32.dll to Chromium dir
+[00:12]   Copied libgallium_wgl.dll to Chromium dir
+[00:12]   Using Mesa llvmpipe (desktop GL) — multithreaded CPU rendering
+[00:13] Capturing execution frames: image_seg_point.json
+[00:22]   Frame 1 saved (frame_000.jpg, t=0.0s)
+[00:22]   Validating workflow...
+[00:22]   Validation failed: graphToPrompt produced nodes without class_type: graphToPrompt: 6 nodes, missing class_type: [15,30,31], sample: {"inputs":{"image":"example_image.jpg"},"class_type":"LoadImage","_meta":{"title":"Load Image"}}
+[00:22] Capturing execution frames: image_seg_text.json
+[00:28]   Frame 1 saved (frame_000.jpg, t=0.0s)
+[00:28]   Validating workflow...
+[00:28]   Validation failed: graphToPrompt produced nodes without class_type: graphToPrompt: 5 nodes, missing class_type: [12,15], sample: {"inputs":{"image":"example_image.jpg"},"class_type":"LoadImage","_meta":{"title":"Load Image"}}
+[00:29] Capturing execution frames: scene_seg.json
+[00:35]   Frame 1 saved (frame_000.jpg, t=0.0s)
+[00:35]   Validating workflow...
+[00:35]   Validation failed: graphToPrompt produced nodes without class_type: graphToPrompt: 10 nodes, missing class_type: [12,20,27], sample: {"inputs":{"image":"image.png"},"class_type":"LoadImage","_meta":{"title":"Load Image"}}
+[00:35] Capturing execution frames: scene_seg_interactive.json
+[00:41]   Frame 1 saved (frame_000.jpg, t=0.0s)
+[00:41]   Validating workflow...
+[00:41]   Validation failed: graphToPrompt produced nodes without class_type: graphToPrompt: 4 nodes, missing class_type: [12,26], sample: {"inputs":{"image":"image.png"},"class_type":"LoadImage","_meta":{"title":"Load Image"}}
+[00:42]   [5/5] SKIPPED (not in cpu list) video_point_prompt.json
+[00:42] Results saved to D:\a\ComfyUI-SAM3\ComfyUI-SAM3\comfy-test-logs\SAM3-2117\windows-cpu\results.json
+[00:42] Saved: D:\a\ComfyUI-SAM3\ComfyUI-SAM3\comfy-test-logs\SAM3-2117\windows-cpu\index.html
+[00:42] 
+windows: FAILED
+[00:42] Error: Workflow execution failed (4 error(s))
+[00:42] Details: image_seg_point.json: Workflow validation failed
+
+Details:
+graphToPrompt produced nodes without class_type: graphToPrompt: 6 nodes, missing class_type: [15,30,31], sample: {"inputs":{"image":"example_image.jpg"},"class_type":"LoadImage","_meta":{"title":"Load Image"}}
+image_seg_text.json: Workflow validation failed
+
+Details:
+graphToPrompt produced nodes without class_type: graphToPrompt: 5 nodes, missing class_type: [12,15], sample: {"inputs":{"image":"example_image.jpg"},"class_type":"LoadImage","_meta":{"title":"Load Image"}}
+scene_seg.json: Workflow validation failed
+
+Details:
+graphToPrompt produced nodes without class_type: graphToPrompt: 10 nodes, missing class_type: [12,20,27], sample: {"inputs":{"image":"image.png"},"class_type":"LoadImage","_meta":{"title":"Load Image"}}
+scene_seg_interactive.json: Workflow validation failed
+
+Details:
+graphToPrompt produced nodes without class_type: graphToPrompt: 4 nodes, missing class_type: [12,26], sample: {"inputs":{"image":"image.png"},"class_type":"LoadImage","_meta":{"title":"Load Image"}}

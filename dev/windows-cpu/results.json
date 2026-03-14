@@ -1,0 +1,96 @@
+{
+  "timestamp": "2026-03-13T21:17:50.016454+00:00",
+  "platform": "windows",
+  "hardware": {
+    "os": "Windows-2025Server-10.0.26100-SP0",
+    "cpu": "AMD64 Family 25 Model 1 Stepping 1, AuthenticAMD"
+  },
+  "commit_hash": "bae21147e1b93dd42aa883b7b0800a20d822263e",
+  "success": false,
+  "summary": {
+    "total": 5,
+    "passed": 0,
+    "failed": 4
+  },
+  "workflows": [
+    {
+      "name": "image_seg_point",
+      "status": "fail",
+      "duration_seconds": 8.97,
+      "error": "Workflow validation failed\n\nDetails:\ngraphToPrompt produced nodes without class_type: graphToPrompt: 6 nodes, missing class_type: [15,30,31], sample: {\"inputs\":{\"image\":\"example_image.jpg\"},\"class_type\":\"LoadImage\",\"_meta\":{\"title\":\"Load Image\"}}",
+      "hardware": {
+        "os": "Windows-2025Server-10.0.26100-SP0",
+        "cpu": "AMD64 Family 25 Model 1 Stepping 1, AuthenticAMD"
+      },
+      "resources": {
+        "ram": {
+          "peak": 4.57,
+          "avg": 4.38
+        },
+        "total_ram_gb": 16.0,
+        "samples": 9
+      }
+    },
+    {
+      "name": "image_seg_text",
+      "status": "fail",
+      "duration_seconds": 6.28,
+      "error": "Workflow validation failed\n\nDetails:\ngraphToPrompt produced nodes without class_type: graphToPrompt: 5 nodes, missing class_type: [12,15], sample: {\"inputs\":{\"image\":\"example_image.jpg\"},\"class_type\":\"LoadImage\",\"_meta\":{\"title\":\"Load Image\"}}",
+      "hardware": {
+        "os": "Windows-2025Server-10.0.26100-SP0",
+        "cpu": "AMD64 Family 25 Model 1 Stepping 1, AuthenticAMD"
+      },
+      "resources": {
+        "ram": {
+          "peak": 4.62,
+          "avg": 4.58
+        },
+        "total_ram_gb": 16.0,
+        "samples": 7
+      }
+    },
+    {
+      "name": "scene_seg",
+      "status": "fail",
+      "duration_seconds": 6.1,
+      "error": "Workflow validation failed\n\nDetails:\ngraphToPrompt produced nodes without class_type: graphToPrompt: 10 nodes, missing class_type: [12,20,27], sample: {\"inputs\":{\"image\":\"image.png\"},\"class_type\":\"LoadImage\",\"_meta\":{\"title\":\"Load Image\"}}",
+      "hardware": {
+        "os": "Windows-2025Server-10.0.26100-SP0",
+        "cpu": "AMD64 Family 25 Model 1 Stepping 1, AuthenticAMD"
+      },
+      "resources": {
+        "ram": {
+          "peak": 5.0,
+          "avg": 4.76
+        },
+        "total_ram_gb": 16.0,
+        "samples": 7
+      }
+    },
+    {
+      "name": "scene_seg_interactive",
+      "status": "fail",
+      "duration_seconds": 6.18,
+      "error": "Workflow validation failed\n\nDetails:\ngraphToPrompt produced nodes without class_type: graphToPrompt: 4 nodes, missing class_type: [12,26], sample: {\"inputs\":{\"image\":\"image.png\"},\"class_type\":\"LoadImage\",\"_meta\":{\"title\":\"Load Image\"}}",
+      "hardware": {
+        "os": "Windows-2025Server-10.0.26100-SP0",
+        "cpu": "AMD64 Family 25 Model 1 Stepping 1, AuthenticAMD"
+      },
+      "resources": {
+        "ram": {
+          "peak": 5.27,
+          "avg": 5.09
+        },
+        "total_ram_gb": 16.0,
+        "samples": 7
+      }
+    },
+    {
+      "name": "video_point_prompt",
+      "status": "skipped",
+      "duration_seconds": 0,
+      "error": "Not configured for CPU runner",
+      "hardware": null
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+Capturing execution frames: image_seg_point.json
+  Frame 1 saved (frame_000.jpg, t=0.0s)
+  Validating workflow...
+  Validation failed: graphToPrompt produced nodes without class_type: graphToPrompt: 6 nodes, missing class_type: [15,30,31], sample: {"inputs":{"image":"example_image.jpg"},"class_type":"LoadImage","_meta":{"title":"Load Image"}}
+    Status: FAILED
+    Error: Workflow validation failed
+    Details: graphToPrompt produced nodes without class_type: graphToPrompt: 6 nodes, missing class_type: [15,30,31], sample: {"inputs":{"image":"example_image.jpg"},"class_type":"LoadImage","_meta":{"title":"Load Image"}}

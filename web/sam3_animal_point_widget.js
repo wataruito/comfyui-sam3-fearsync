@@ -41,7 +41,7 @@ function hideWidgetForGood(node, widget, suffix = '') {
 }
 
 app.registerExtension({
-    name: "Comfy.SAM3.SimplePointCollector",
+    name: "Comfy.SAM3.AnimalPointCollector",
 
     async beforeRegisterNodeDef(nodeType, nodeData, app) {
         console.log("[SAM3] beforeRegisterNodeDef called for:", nodeData.name);
@@ -477,35 +477,25 @@ app.registerExtension({
                 // Handle manual node resize (user dragging)
                 const originalOnResize = this.onResize;
                 this.onResize = function(size) {
-                    // Guard at top — blocks recursive calls from setSize below
-                    if (this._isResizing) return;
-                    this._isResizing = true;
-
                     if (originalOnResize) {
                         originalOnResize.apply(this, arguments);
                     }
 
-                    const nodeWidth = size[0];
-                    const img = this.canvasWidget.image;
+                    // Prevent feedback loop
+                    if (this._isResizing) return;
+                    this._isResizing = true;
 
-                    let newH;
-                    if (img && img.width > 0) {
-                        newH = Math.max(100, Math.round((nodeWidth - 20) * img.height / img.width));
-                    } else {
-                        newH = Math.max(200, size[1] - 80 - 30);
-                    }
+                    // Derive canvas height from node height (controls=30, browse=26, title+padding=80)
+                    const newH = Math.max(100, size[1] - 80 - 30 - 26);
 
-                    if (Math.abs(newH - this.canvasWidget.widgetHeight) > 2) {
+                    if (Math.abs(newH - this.canvasWidget.widgetHeight) > 5) {
                         this.canvasWidget.widgetHeight = newH;
                         container.style.height = newH + "px";
-                        // Force node to correct height — makes shrinking possible.
-                        // Uses computeSize()[1] (= widgetHeight + all other widgets + title)
-                        // so it exactly matches LiteGraph's own minimum → no further growth.
-                        this.setSize([nodeWidth, this.computeSize()[1]]);
                         this.redrawCanvas();
                     }
 
-                    this._isResizing = false;
+                    // Delayed reset to absorb any async reflow from LiteGraph
+                    setTimeout(() => { this._isResizing = false; }, 50);
                 };
 
                 // ── mask_video_path file selector ─────────────────────

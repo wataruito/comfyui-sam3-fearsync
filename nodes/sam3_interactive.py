@@ -37,7 +37,7 @@ log = logging.getLogger("sam3")
 _INTERACTIVE_CACHE = {}
 
 # ---------------------------------------------------------------------------
-# SAM3PointCollector video frame cache — keyed by node unique_id
+# SAM3AnimalPointCollector video frame cache — keyed by node unique_id
 # ---------------------------------------------------------------------------
 _POINT_COLLECTOR_FRAMES = {}         # node_id -> video_frames tensor [N, H, W, C]
 _POINT_COLLECTOR_MASK_PATHS = {}     # node_id -> mask video file path (str)
@@ -47,7 +47,7 @@ _POINT_COLLECTOR_MASK_TENSORS = {}   # node_id -> mask_frames tensor [N, H, W, C
 _SEGMENT_LOCK = threading.Lock()
 
 
-class SAM3PointCollector:
+class SAM3AnimalPointCollector:
     """
     Interactive Point Collector for SAM3
 
@@ -163,7 +163,7 @@ class SAM3PointCollector:
                 "has_mask_video": ["1" if has_mask else "0"],
             }
 
-        if cache_key in SAM3PointCollector._cache:
+        if cache_key in SAM3AnimalPointCollector._cache:
             log.info(f"CACHE HIT - SAM3PointCollector key={cache_key[:8]}")
             # Still update mask path cache and total_frames for UI
             tf = 1
@@ -185,7 +185,7 @@ class SAM3PointCollector:
                     _POINT_COLLECTOR_MASK_TENSORS.pop(str(unique_id), None)
             return {
                 "ui": _build_ui(tf),
-                "result": SAM3PointCollector._cache[cache_key],
+                "result": SAM3AnimalPointCollector._cache[cache_key],
             }
 
         log.info(f"CACHE MISS - SAM3PointCollector key={cache_key[:8]}")
@@ -234,7 +234,7 @@ class SAM3PointCollector:
             }
 
         result = (positive_points, negative_points, single_prompt)
-        SAM3PointCollector._cache[cache_key] = result
+        SAM3AnimalPointCollector._cache[cache_key] = result
 
         # Cache video frames for on-demand frame serving
         total_frames = 1
@@ -259,6 +259,146 @@ class SAM3PointCollector:
         return {
             "ui": _build_ui(total_frames),
             "result": result,
+        }
+
+    def tensor_to_base64(self, tensor):
+        """Convert ComfyUI image tensor to base64 string for JavaScript widget"""
+        img_array = tensor[0].cpu().numpy()
+        img_array = (img_array * 255).astype(np.uint8)
+        pil_img = Image.fromarray(img_array)
+        buffered = io.BytesIO()
+        pil_img.save(buffered, format="JPEG", quality=75)
+        return base64.b64encode(buffered.getvalue()).decode('utf-8')
+
+
+
+class SAM3PointCollector:
+    """
+    Interactive Point Collector for SAM3
+
+    Displays image canvas in the node where users can click to add:
+    - Positive points (Left-click) - green circles
+    - Negative points (Shift+Left-click or Right-click) - red circles
+
+    Outputs point arrays to feed into SAM3Segmentation node.
+    """
+    # Class-level cache for output results
+    _cache = {}
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "image": ("IMAGE", {
+                    "tooltip": "Image to display in interactive canvas. Left-click to add positive points (green), Shift+Left-click or Right-click to add negative points (red). Points are automatically normalized to image dimensions."
+                }),
+                "points_store": ("STRING", {"multiline": False, "default": "{}"}),
+                "coordinates": ("STRING", {"multiline": False, "default": "[]"}),
+                "neg_coordinates": ("STRING", {"multiline": False, "default": "[]"}),
+            },
+        }
+
+    RETURN_TYPES = ("SAM3_POINTS_PROMPT", "SAM3_POINTS_PROMPT")
+    RETURN_NAMES = ("positive_points", "negative_points")
+    FUNCTION = "collect_points"
+    CATEGORY = "SAM3"
+    OUTPUT_NODE = True  # Makes node executable even without outputs connected
+
+    @classmethod
+    def IS_CHANGED(cls, image, points_store, coordinates, neg_coordinates):
+        # Return hash based on actual point content, not object identity
+        # This ensures downstream nodes don't re-run when points haven't changed
+        import hashlib
+        h = hashlib.md5()
+        h.update(str(image.shape).encode())
+        h.update(coordinates.encode())
+        h.update(neg_coordinates.encode())
+        result = h.hexdigest()
+        log.debug(f"IS_CHANGED SAM3PointCollector: shape={image.shape}, coords={coordinates}, neg_coords={neg_coordinates}")
+        log.debug(f"IS_CHANGED SAM3PointCollector: returning hash={result}")
+        return result
+
+    def collect_points(self, image, points_store, coordinates, neg_coordinates):
+        """
+        Collect points from interactive canvas
+
+        Args:
+            image: ComfyUI image tensor [B, H, W, C]
+            points_store: Combined JSON storage (hidden widget)
+            coordinates: Positive points JSON (hidden widget)
+            neg_coordinates: Negative points JSON (hidden widget)
+
+        Returns:
+            Tuple of (positive_points, negative_points) as separate SAM3_POINTS_PROMPT outputs
+        """
+        # Create cache key from inputs
+        import hashlib
+        h = hashlib.md5()
+        h.update(str(image.shape).encode())
+        h.update(coordinates.encode())
+        h.update(neg_coordinates.encode())
+        cache_key = h.hexdigest()
+
+        # Check if we have cached result
+        if cache_key in SAM3PointCollector._cache:
+            cached = SAM3PointCollector._cache[cache_key]
+            log.info(f"CACHE HIT - returning cached result for key={cache_key[:8]}")
+            # Still need to return UI update
+            img_base64 = self.tensor_to_base64(image)
+            return {
+                "ui": {"bg_image": [img_base64]},
+                "result": cached  # Return the SAME objects
+            }
+
+        log.info(f"CACHE MISS - computing new result for key={cache_key[:8]}")
+
+        # Parse coordinates from JSON
+        try:
+            pos_coords = json.loads(coordinates) if coordinates and coordinates.strip() else []
+            neg_coords = json.loads(neg_coordinates) if neg_coordinates and neg_coordinates.strip() else []
+        except json.JSONDecodeError:
+            pos_coords = []
+            neg_coords = []
+
+        log.info(f"Collected {len(pos_coords)} positive, {len(neg_coords)} negative points")
+
+        # Get image dimensions for normalization
+        img_height, img_width = image.shape[1], image.shape[2]
+        log.info(f"Image dimensions: {img_width}x{img_height}")
+
+        # Convert to SAM3 point format - separate positive and negative outputs
+        # SAM3 expects normalized coordinates (0-1), so divide by image dimensions
+        positive_points = {"points": [], "labels": []}
+        negative_points = {"points": [], "labels": []}
+
+        # Add positive points (label = 1) - normalize to 0-1
+        for p in pos_coords:
+            normalized_x = p['x'] / img_width
+            normalized_y = p['y'] / img_height
+            positive_points["points"].append([normalized_x, normalized_y])
+            positive_points["labels"].append(1)
+            log.info(f"  Positive point: ({p['x']:.1f}, {p['y']:.1f}) -> ({normalized_x:.3f}, {normalized_y:.3f})")
+
+        # Add negative points (label = 0) - normalize to 0-1
+        for n in neg_coords:
+            normalized_x = n['x'] / img_width
+            normalized_y = n['y'] / img_height
+            negative_points["points"].append([normalized_x, normalized_y])
+            negative_points["labels"].append(0)
+            log.info(f"  Negative point: ({n['x']:.1f}, {n['y']:.1f}) -> ({normalized_x:.3f}, {normalized_y:.3f})")
+
+        log.info(f"Output: {len(positive_points['points'])} positive, {len(negative_points['points'])} negative")
+
+        # Cache the result
+        result = (positive_points, negative_points)
+        SAM3PointCollector._cache[cache_key] = result
+
+        # Send image back to widget as base64
+        img_base64 = self.tensor_to_base64(image)
+
+        return {
+            "ui": {"bg_image": [img_base64]},
+            "result": result
         }
 
     def tensor_to_base64(self, tensor):
@@ -1067,6 +1207,7 @@ if _SERVER_AVAILABLE:
 # Node mappings for ComfyUI registration
 NODE_CLASS_MAPPINGS = {
     "SAM3PointCollector": SAM3PointCollector,
+    "SAM3AnimalPointCollector": SAM3AnimalPointCollector,
     "SAM3BBoxCollector": SAM3BBoxCollector,
     "SAM3MultiRegionCollector": SAM3MultiRegionCollector,
     "SAM3InteractiveCollector": SAM3InteractiveCollector,
@@ -1074,6 +1215,7 @@ NODE_CLASS_MAPPINGS = {
 
 NODE_DISPLAY_NAME_MAPPINGS = {
     "SAM3PointCollector": "SAM3 Point Collector",
+    "SAM3AnimalPointCollector": "SAM3 Animal Point Collector",
     "SAM3BBoxCollector": "SAM3 BBox Collector",
     "SAM3MultiRegionCollector": "SAM3 Multi-Region Collector",
     "SAM3InteractiveCollector": "SAM3 Interactive Collector",

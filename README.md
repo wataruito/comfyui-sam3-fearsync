@@ -12,7 +12,7 @@ ComfyUI + SAM3-based pipeline for analyzing **synchronized freeze behavior** (fe
 
 This repository provides a ComfyUI + SAM3 workflow for tracking two mice independently in front-angled camera recordings, detecting freeze behavior, and evaluating synchrony between the two animals.
 
-The `comfyui-sam3/` directory is a fork of [PozzettiAndrea/ComfyUI-SAM3](https://github.com/PozzettiAndrea/ComfyUI-SAM3), extended with custom nodes for two-mouse tracking (symlinked from `~/ComfyUI/custom_nodes/comfyui-sam3`).
+This repository (`comfyui-sam3-fearsync/`) is a fork of [PozzettiAndrea/ComfyUI-SAM3](https://github.com/PozzettiAndrea/ComfyUI-SAM3), extended with custom nodes for two-mouse tracking (symlinked from `~/ComfyUI/custom_nodes/comfyui-sam3-fearsync`).
 
 ---
 
@@ -51,14 +51,14 @@ cd ~/ComfyUI && ~/miniconda3/envs/sam3/bin/python main.py --listen --force-fp16
 ## Two-Mouse Tracking Workflow
 
 ```
-Load Video → SAM3PointCollector → (single_prompt) → SAM3TwoMouseTracking → SAM3Propagate → SAM3VideoOutput
-                  ↑                                         ↑                                    ↓
-            video_frames                             video_frames                    visualization → SaveVideo
-            mask_video_path ←────────────────────────────────────────────────── (saved video path)
+Load Video → SAM3AnimalPointCollector → (single_prompt) → SAM3TwoMouseTracking → SAM3Propagate → SAM3VideoOutput
+                  ↑                                              ↑                                    ↓
+            video_frames                                  video_frames                    visualization → SaveVideo
+            mask_video_path ←──────────────────────────────────────────────────────── (saved video path)
 ```
 
 **Steps:**
-1. Connect `video_frames` to `SAM3PointCollector`
+1. Connect `video_frames` to `SAM3AnimalPointCollector`
 2. Select a frame with the slider; set `animal_id` (1 or 2)
 3. Click on the canvas to place a point prompt → Queue (Ctrl+Enter)
 4. Canvas auto-clears → repeat for next frame / animal
@@ -81,8 +81,8 @@ The following nodes were added on top of [PozzettiAndrea/ComfyUI-SAM3](https://g
 
 ---
 
-#### `SAM3PointCollector`
-*Modified from the original `SAM3PointCollector`.* Extended with:
+#### `SAM3AnimalPointCollector`
+*Custom node (fork-specific), replaces the original `SAM3PointCollector`.* Extended with:
 - `animal_id` input (1–32) that maps directly to SAM3 `obj_id`
 - `single_prompt` output (`SAM3_SINGLE_PROMPT`) for use with `SAM3TwoMouseTracking`
 - Video playback slider with frame scrubbing

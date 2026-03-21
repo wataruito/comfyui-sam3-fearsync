@@ -74,6 +74,33 @@ app.registerExtension({
                 pointsCounter.textContent = "Points: 0 pos, 0 neg";
                 infoBar.appendChild(pointsCounter);
 
+                // Create mask toggle button
+                const maskToggle = document.createElement("button");
+                maskToggle.textContent = "Mask: OFF";
+                maskToggle.style.cssText = "padding: 5px 10px; background: #444; color: #aaa; border: 1px solid #666; border-radius: 3px; cursor: pointer; font-size: 12px; font-weight: bold; display: none;";
+                maskToggle.addEventListener("click", (e) => {
+                    e.preventDefault(); e.stopPropagation();
+                    this.canvasWidget.showMask = !this.canvasWidget.showMask;
+                    if (this.canvasWidget.showMask) {
+                        maskToggle.textContent = "Mask: ON";
+                        maskToggle.style.background = "#484";
+                        maskToggle.style.color = "#fff";
+                        maskToggle.style.borderColor = "#4a4";
+                        // Fetch mask frame for current position
+                        const idx = parseInt(this._videoControls?.slider?.value || 0);
+                        this._fetchMaskFrame(idx);
+                    } else {
+                        maskToggle.textContent = "Mask: OFF";
+                        maskToggle.style.background = "#444";
+                        maskToggle.style.color = "#aaa";
+                        maskToggle.style.borderColor = "#666";
+                        this.canvasWidget.maskImage = null;
+                        this.redrawCanvas();
+                    }
+                });
+                infoBar.appendChild(maskToggle);
+                this._maskToggleBtn = maskToggle;
+
                 // Create clear button
                 const clearButton = document.createElement("button");
                 clearButton.textContent = "Clear All";
@@ -87,7 +114,7 @@ app.registerExtension({
                 canvas.width = 400;
                 canvas.height = 300;
                 // Use max-width and max-height instead of width/height 100% to prevent overflow
-                canvas.style.cssText = "display: block; max-width: 100%; max-height: 100%; object-fit: contain; cursor: crosshair; margin: 0 auto;";
+                canvas.style.cssText = "display: block; width: 100%; height: 100%; object-fit: contain; cursor: crosshair;";
                 container.appendChild(canvas);
 
                 const ctx = canvas.getContext("2d");
@@ -99,6 +126,8 @@ app.registerExtension({
                     ctx: ctx,
                     container: container,
                     image: null,
+                    maskImage: null,
+                    showMask: false,
                     positivePoints: [],
                     negativePoints: [],
                     hoveredPoint: null,
@@ -113,11 +142,154 @@ app.registerExtension({
                 // Store widget reference for updates
                 this.canvasWidget.domWidget = widget;
 
-                // Dynamic widget height - updated when image loads
+                // Static widget height - updated explicitly on resize/image load
                 this.canvasWidget.widgetHeight = 300; // Default initial height
                 widget.computeSize = (width) => {
                     return [width, this.canvasWidget.widgetHeight];
                 };
+
+                // ── Video playback controls ───────────────────────────────
+                const controls = document.createElement("div");
+                controls.style.cssText = "display:flex;align-items:center;gap:5px;padding:4px 6px;"
+                                       + "background:#1a1a1a;box-sizing:border-box;width:100%;";
+
+                const playBtn = document.createElement("button");
+                playBtn.textContent = "▶";
+                playBtn.style.cssText = "padding:2px 8px;background:#444;color:#fff;border:1px solid #555;"
+                                      + "border-radius:3px;cursor:pointer;font-size:13px;min-width:30px;";
+                playBtn.onmouseover = () => playBtn.style.background = "#555";
+                playBtn.onmouseout  = () => playBtn.style.background = "#444";
+                controls.appendChild(playBtn);
+
+                const timeLabel = document.createElement("span");
+                timeLabel.textContent = "0:00 / 0:00";
+                timeLabel.style.cssText = "color:#aaa;font-size:11px;font-family:monospace;min-width:85px;";
+                controls.appendChild(timeLabel);
+
+                const slider = document.createElement("input");
+                slider.type = "range"; slider.min = 0; slider.max = 0; slider.value = 0;
+                slider.style.cssText = "flex:1;cursor:pointer;accent-color:#4af;";
+                controls.appendChild(slider);
+
+                const frameLabel = document.createElement("span");
+                frameLabel.textContent = "Frame: 0";
+                frameLabel.style.cssText = "color:#aaa;font-size:11px;font-family:monospace;"
+                                         + "min-width:68px;text-align:right;";
+                controls.appendChild(frameLabel);
+
+                const ctrlWidget = this.addDOMWidget("controls", "videoControls", controls);
+                ctrlWidget.computeSize = (width) => [width, 30];
+
+                // Video state
+                this.videoState = {
+                    nodeId:      null,
+                    totalFrames: 1,
+                    fps:         4,
+                    isPlaying:   false,
+                    playInterval: null,
+                };
+
+                const formatTime = (secs) => {
+                    const m = Math.floor(secs / 60);
+                    const s = Math.floor(secs % 60);
+                    return `${m}:${s.toString().padStart(2, "0")}`;
+                };
+
+                const updateFrameDisplay = (idx) => {
+                    slider.value = idx;
+                    frameLabel.textContent = `Frame: ${idx}`;
+                    const fps   = this.videoState.fps;
+                    const total = this.videoState.totalFrames;
+                    timeLabel.textContent = `${formatTime(idx / fps)} / ${formatTime((total - 1) / fps)}`;
+                    // Sync frame_idx widget
+                    const fw = this.widgets?.find(w => w.name === "frame_idx");
+                    if (fw) fw.value = idx;
+                };
+
+                const fetchFrame = async (idx) => {
+                    if (!this.videoState.nodeId) return;
+                    try {
+                        const resp = await fetch("/sam3/get_frame", {
+                            method: "POST",
+                            headers: {"Content-Type": "application/json"},
+                            body: JSON.stringify({node_id: this.videoState.nodeId, frame_idx: idx}),
+                        });
+                        if (!resp.ok) return;
+                        const blob = await resp.blob();
+                        const url  = URL.createObjectURL(blob);
+                        const img  = new Image();
+                        img.onload = () => {
+                            URL.revokeObjectURL(url);
+                            this.canvasWidget.image = img;
+                            canvas.width  = img.width;
+                            canvas.height = img.height;
+                            const nodeWidth = this.size[0] || 400;
+                            const newH = Math.max(100, Math.round((nodeWidth - 20) * img.height / img.width));
+                            if (Math.abs(newH - this.canvasWidget.widgetHeight) > 2) {
+                                this._isResizing = true;
+                                this.canvasWidget.widgetHeight = newH;
+                                container.style.height = newH + "px";
+                                this.setSize([nodeWidth, this.computeSize()[1]]);
+                                this._isResizing = false;
+                            }
+                            this.redrawCanvas();
+                        };
+                        img.src = url;
+                    } catch (e) { /* ignore */ }
+                };
+
+                // Fetch mask frame on demand
+                this._fetchMaskFrame = async (idx) => {
+                    if (!this.videoState.nodeId || !this.canvasWidget.showMask) return;
+                    try {
+                        const resp = await fetch("/sam3/get_mask_frame", {
+                            method: "POST",
+                            headers: {"Content-Type": "application/json"},
+                            body: JSON.stringify({node_id: this.videoState.nodeId, frame_idx: idx}),
+                        });
+                        if (!resp.ok) return;
+                        const blob = await resp.blob();
+                        const url  = URL.createObjectURL(blob);
+                        const img  = new Image();
+                        img.onload = () => {
+                            URL.revokeObjectURL(url);
+                            this.canvasWidget.maskImage = img;
+                            this.redrawCanvas();
+                        };
+                        img.src = url;
+                    } catch (e) { /* ignore */ }
+                };
+
+                // Slider scrub
+                slider.addEventListener("input", () => {
+                    const idx = parseInt(slider.value);
+                    updateFrameDisplay(idx);
+                    fetchFrame(idx);
+                    this._fetchMaskFrame(idx);
+                });
+
+                // Play / Pause
+                playBtn.addEventListener("click", (e) => {
+                    e.preventDefault(); e.stopPropagation();
+                    if (this.videoState.isPlaying) {
+                        clearInterval(this.videoState.playInterval);
+                        this.videoState.isPlaying = false;
+                        playBtn.textContent = "▶";
+                    } else {
+                        this.videoState.isPlaying = true;
+                        playBtn.textContent = "⏸";
+                        this.videoState.playInterval = setInterval(() => {
+                            let next = parseInt(slider.value) + 1;
+                            if (next >= this.videoState.totalFrames) next = 0;
+                            updateFrameDisplay(next);
+                            fetchFrame(next);
+                            this._fetchMaskFrame(next);
+                        }, Math.round(1000 / this.videoState.fps));
+                    }
+                });
+
+                // Store refs for onExecuted
+                this._videoControls = { slider, frameLabel, timeLabel, playBtn, updateFrameDisplay, fetchFrame };
 
                 // Clear button handler
                 clearButton.addEventListener("click", (e) => {
@@ -250,9 +422,33 @@ app.registerExtension({
                     }
                 });
 
-                // Handle image input changes
+                // Handle image input changes + video metadata
                 this.onExecuted = (message) => {
                     console.log("[SAM3] onExecuted called with message:", message);
+
+                    // Update video state from server
+                    if (message.node_id?.[0])      this.videoState.nodeId      = message.node_id[0];
+                    if (message.fps?.[0])           this.videoState.fps         = parseFloat(message.fps[0]);
+                    if (message.total_frames?.[0]) {
+                        this.videoState.totalFrames = parseInt(message.total_frames[0]);
+                        this._videoControls.slider.max = this.videoState.totalFrames - 1;
+                    }
+                    if (message.frame_idx?.[0]) {
+                        this._videoControls.updateFrameDisplay(parseInt(message.frame_idx[0]));
+                    }
+
+                    // Show/hide mask toggle based on whether a mask video is configured
+                    if (message.has_mask_video?.[0] !== undefined) {
+                        const hasMask = message.has_mask_video[0] === "1";
+                        if (this._maskToggleBtn) {
+                            this._maskToggleBtn.style.display = hasMask ? "" : "none";
+                        }
+                        if (!hasMask) {
+                            this.canvasWidget.showMask = false;
+                            this.canvasWidget.maskImage = null;
+                        }
+                    }
+
                     if (message.bg_image && message.bg_image[0]) {
                         const img = new Image();
                         img.onload = () => {
@@ -261,18 +457,15 @@ app.registerExtension({
                             canvas.width = img.width;
                             canvas.height = img.height;
 
-                            // Calculate widget height based on image aspect ratio
                             const nodeWidth = this.size[0] || 400;
-                            const availableWidth = nodeWidth - 20; // Account for padding
-                            const aspectRatio = img.height / img.width;
-                            const newWidgetHeight = Math.round(availableWidth * aspectRatio);
-
-                            // Update widget height and resize node
-                            this._isResizing = true;  // Prevent onResize from fighting
-                            this.canvasWidget.widgetHeight = newWidgetHeight;
-                            container.style.height = newWidgetHeight + "px";
-                            this.setSize([nodeWidth, newWidgetHeight + 80]); // +80 for title/padding
-                            setTimeout(() => { this._isResizing = false; }, 50);
+                            const newWidgetHeight = Math.max(100, Math.round((nodeWidth - 20) * img.height / img.width));
+                            if (Math.abs(newWidgetHeight - this.canvasWidget.widgetHeight) > 2) {
+                                this._isResizing = true;
+                                this.canvasWidget.widgetHeight = newWidgetHeight;
+                                container.style.height = newWidgetHeight + "px";
+                                this.setSize([nodeWidth, this.computeSize()[1]]);
+                                this._isResizing = false;
+                            }
 
                             console.log(`[SAM3] Widget resized to match image: ${newWidgetHeight}px`);
                             this.redrawCanvas();
@@ -284,26 +477,111 @@ app.registerExtension({
                 // Handle manual node resize (user dragging)
                 const originalOnResize = this.onResize;
                 this.onResize = function(size) {
+                    // Guard at top — blocks recursive calls from setSize below
+                    if (this._isResizing) return;
+                    this._isResizing = true;
+
                     if (originalOnResize) {
                         originalOnResize.apply(this, arguments);
                     }
 
-                    // Prevent feedback loop - only update if not already resizing
-                    if (this._isResizing) return;
-                    this._isResizing = true;
+                    const nodeWidth = size[0];
+                    const img = this.canvasWidget.image;
 
-                    // Calculate new widget height from node size
-                    const newWidgetHeight = Math.max(200, size[1] - 80);
-
-                    // Only update if significantly different (prevents micro-adjustments)
-                    if (Math.abs(newWidgetHeight - this.canvasWidget.widgetHeight) > 5) {
-                        this.canvasWidget.widgetHeight = newWidgetHeight;
-                        container.style.height = newWidgetHeight + "px";
+                    let newH;
+                    if (img && img.width > 0) {
+                        newH = Math.max(100, Math.round((nodeWidth - 20) * img.height / img.width));
+                    } else {
+                        newH = Math.max(200, size[1] - 80 - 30);
                     }
 
-                    // Reset flag after a short delay to allow resize to settle
-                    setTimeout(() => { this._isResizing = false; }, 50);
+                    if (Math.abs(newH - this.canvasWidget.widgetHeight) > 2) {
+                        this.canvasWidget.widgetHeight = newH;
+                        container.style.height = newH + "px";
+                        // Force node to correct height — makes shrinking possible.
+                        // Uses computeSize()[1] (= widgetHeight + all other widgets + title)
+                        // so it exactly matches LiteGraph's own minimum → no further growth.
+                        this.setSize([nodeWidth, this.computeSize()[1]]);
+                        this.redrawCanvas();
+                    }
+
+                    this._isResizing = false;
                 };
+
+                // ── mask_video_path file selector ─────────────────────
+                {
+                    const row = document.createElement("div");
+                    row.style.cssText = "display:flex;align-items:center;gap:4px;"
+                                      + "padding:2px 6px;box-sizing:border-box;width:100%;";
+
+                    const sel = document.createElement("select");
+                    sel.style.cssText = "flex:1;background:#2a2a2a;color:#ddd;border:1px solid #555;"
+                                      + "border-radius:3px;padding:2px 4px;font-size:11px;"
+                                      + "font-family:monospace;min-width:0;";
+                    const placeholder = document.createElement("option");
+                    placeholder.value = "";
+                    placeholder.textContent = "— click 🔄 to load videos —";
+                    sel.appendChild(placeholder);
+                    row.appendChild(sel);
+
+                    const refreshBtn = document.createElement("button");
+                    refreshBtn.textContent = "🔄";
+                    refreshBtn.title = "Refresh video list";
+                    refreshBtn.style.cssText = "padding:2px 6px;background:#444;color:#fff;"
+                                             + "border:1px solid #666;border-radius:3px;cursor:pointer;font-size:13px;";
+                    refreshBtn.onmouseover = () => refreshBtn.style.background = "#555";
+                    refreshBtn.onmouseout  = () => refreshBtn.style.background = "#444";
+                    row.appendChild(refreshBtn);
+
+                    const loadVideos = async () => {
+                        refreshBtn.textContent = "⏳";
+                        try {
+                            const resp  = await fetch("/sam3/list_videos");
+                            const files = await resp.json();
+                            // Preserve current selection
+                            const mvpWidget = this.widgets?.find(w => w.name === "mask_video_path");
+                            const current   = mvpWidget?.value || "";
+                            sel.innerHTML   = "";
+                            const ph = document.createElement("option");
+                            ph.value = ""; ph.textContent = "— select a video —";
+                            sel.appendChild(ph);
+                            files.forEach(f => {
+                                const opt = document.createElement("option");
+                                opt.value = f.path;
+                                opt.textContent = f.label;
+                                if (f.path === current) opt.selected = true;
+                                sel.appendChild(opt);
+                            });
+                        } catch (e) {
+                            const opt = document.createElement("option");
+                            opt.value = ""; opt.textContent = "Error loading list";
+                            sel.innerHTML = ""; sel.appendChild(opt);
+                        }
+                        refreshBtn.textContent = "🔄";
+                    };
+
+                    refreshBtn.addEventListener("click", (e) => {
+                        e.preventDefault(); e.stopPropagation();
+                        loadVideos();
+                    });
+
+                    sel.addEventListener("change", () => {
+                        if (!sel.value) return;
+                        const mvpWidget = this.widgets?.find(w => w.name === "mask_video_path");
+                        if (mvpWidget) {
+                            mvpWidget.value = sel.value;
+                            const el = mvpWidget.element || mvpWidget.inputEl;
+                            if (el) el.value = sel.value;
+                        }
+                    });
+
+                    const browseWidget = this.addDOMWidget("mask_browse", "maskBrowse", row);
+                    browseWidget.computeSize = (width) => [width, 26];
+
+                    // Auto-load on first render
+                    setTimeout(loadVideos, 300);
+                }
+                // ── end file selector ──────────────────────────────────
 
                 // Draw initial placeholder
                 console.log("[SAM3] Drawing initial placeholder");
@@ -320,6 +598,14 @@ app.registerExtension({
                 console.log("[SAM3] Node size set to:", [nodeWidth, nodeHeight]);
                 console.log("[SAM3] onNodeCreated complete");
                 return result;
+            };
+
+            // Helper: Clear canvas (called by downstream SAM3TwoMouseTracking)
+            nodeType.prototype.clearCanvas = function() {
+                this.canvasWidget.positivePoints = [];
+                this.canvasWidget.negativePoints = [];
+                this.updatePoints();
+                this.redrawCanvas();
             };
 
             // Helper: Find point at coordinates
@@ -369,14 +655,19 @@ app.registerExtension({
 
             // Helper: Redraw canvas
             nodeType.prototype.redrawCanvas = function() {
-                const {canvas, ctx, image, positivePoints, negativePoints, hoveredPoint} = this.canvasWidget;
+                const {canvas, ctx, image, maskImage, showMask, positivePoints, negativePoints, hoveredPoint} = this.canvasWidget;
 
                 // Clear
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
 
                 // Draw image if available
                 if (image) {
-                    ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+                    if (showMask && maskImage) {
+                        // Show annotated (colorized) frame as background
+                        ctx.drawImage(maskImage, 0, 0, canvas.width, canvas.height);
+                    } else {
+                        ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+                    }
                 } else {
                     // Placeholder
                     ctx.fillStyle = "#333";

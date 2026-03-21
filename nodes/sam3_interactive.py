@@ -36,6 +36,13 @@ log = logging.getLogger("sam3")
 # ---------------------------------------------------------------------------
 _INTERACTIVE_CACHE = {}
 
+# ---------------------------------------------------------------------------
+# SAM3PointCollector video frame cache — keyed by node unique_id
+# ---------------------------------------------------------------------------
+_POINT_COLLECTOR_FRAMES = {}         # node_id -> video_frames tensor [N, H, W, C]
+_POINT_COLLECTOR_MASK_PATHS = {}     # node_id -> mask video file path (str)
+_POINT_COLLECTOR_MASK_TENSORS = {}   # node_id -> mask_frames tensor [N, H, W, C]
+
 # Serializes GPU work from parallel per-prompt requests
 _SEGMENT_LOCK = threading.Lock()
 
@@ -48,7 +55,9 @@ class SAM3PointCollector:
     - Positive points (Left-click) - green circles
     - Negative points (Shift+Left-click or Right-click) - red circles
 
-    Outputs point arrays to feed into SAM3Segmentation node.
+    Upgraded: connect video_frames + set frame_idx/animal_id to navigate frames
+    without a separate Select Images node. Outputs SAM3_SINGLE_PROMPT for use
+    with SAM3TwoMouseTracking accumulator.
     """
     # Class-level cache for output results
     _cache = {}
@@ -57,134 +66,209 @@ class SAM3PointCollector:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "image": ("IMAGE", {
-                    "tooltip": "Image to display in interactive canvas. Left-click to add positive points (green), Shift+Left-click or Right-click to add negative points (red). Points are automatically normalized to image dimensions."
-                }),
                 "points_store": ("STRING", {"multiline": False, "default": "{}"}),
                 "coordinates": ("STRING", {"multiline": False, "default": "[]"}),
                 "neg_coordinates": ("STRING", {"multiline": False, "default": "[]"}),
+                "frame_idx": ("INT", {
+                    "default": 0, "min": 0,
+                    "tooltip": "Frame to display and annotate. Synced with the video slider."
+                }),
+                "animal_id": ("INT", {
+                    "default": 1, "min": 1, "max": 32,
+                    "tooltip": "Animal ID for this prompt (1, 2, …). Used as obj_id in SAM3."
+                }),
+            },
+            "optional": {
+                "video_frames": ("IMAGE", {
+                    "tooltip": "All video frames as batch [N,H,W,C]. Enables video playback slider."
+                }),
+                "image": ("IMAGE", {
+                    "tooltip": "Single image fallback when video_frames is not connected."
+                }),
+                "mask_frames": ("IMAGE", {
+                    "tooltip": "Visualization frames from SAM3VideoOutput. Shown as overlay when 'Mask' toggle is on. Takes priority over mask_video_path.",
+                }),
+                "mask_video_path": ("STRING", {
+                    "default": "",
+                    "multiline": False,
+                    "tooltip": "Fallback: path to mask video file. Used only when mask_frames is not connected.",
+                }),
+            },
+            "hidden": {
+                "unique_id": "UNIQUE_ID",
             },
         }
 
-    RETURN_TYPES = ("SAM3_POINTS_PROMPT", "SAM3_POINTS_PROMPT")
-    RETURN_NAMES = ("positive_points", "negative_points")
+    RETURN_TYPES = ("SAM3_POINTS_PROMPT", "SAM3_POINTS_PROMPT", "SAM3_SINGLE_PROMPT")
+    RETURN_NAMES = ("positive_points", "negative_points", "single_prompt")
     FUNCTION = "collect_points"
     CATEGORY = "SAM3"
     OUTPUT_NODE = True  # Makes node executable even without outputs connected
 
     @classmethod
-    def IS_CHANGED(cls, image, points_store, coordinates, neg_coordinates):
-        # Return hash based on actual point content, not object identity
-        # This ensures downstream nodes don't re-run when points haven't changed
-        import hashlib
+    def IS_CHANGED(cls, points_store, coordinates, neg_coordinates,
+                   frame_idx=0, animal_id=1, video_frames=None, image=None,
+                   mask_frames=None, mask_video_path=None, unique_id=None):
         h = hashlib.md5()
-        h.update(str(image.shape).encode())
         h.update(coordinates.encode())
         h.update(neg_coordinates.encode())
-        result = h.hexdigest()
-        log.debug(f"IS_CHANGED SAM3PointCollector: shape={image.shape}, coords={coordinates}, neg_coords={neg_coordinates}")
-        log.debug(f"IS_CHANGED SAM3PointCollector: returning hash={result}")
-        return result
+        h.update(str(frame_idx).encode())
+        h.update(str(animal_id).encode())
+        if video_frames is not None:
+            h.update(str(video_frames.shape).encode())
+        elif image is not None:
+            h.update(str(image.shape).encode())
+        if mask_frames is not None:
+            h.update(str(mask_frames.shape).encode())
+        elif mask_video_path:
+            h.update(mask_video_path.encode())
+        return h.hexdigest()
 
-    def collect_points(self, image, points_store, coordinates, neg_coordinates):
-        """
-        Collect points from interactive canvas
+    def collect_points(self, points_store, coordinates, neg_coordinates,
+                       frame_idx=0, animal_id=1, video_frames=None, image=None,
+                       mask_frames=None, mask_video_path=None, unique_id=None):
+        # Select the display frame
+        if video_frames is not None:
+            idx = min(frame_idx, video_frames.shape[0] - 1)
+            display = video_frames[idx:idx+1]   # [1, H, W, C]
+        elif image is not None:
+            display = image
+        else:
+            raise ValueError("Either video_frames or image must be provided.")
 
-        Args:
-            image: ComfyUI image tensor [B, H, W, C]
-            points_store: Combined JSON storage (hidden widget)
-            coordinates: Positive points JSON (hidden widget)
-            neg_coordinates: Negative points JSON (hidden widget)
-
-        Returns:
-            Tuple of (positive_points, negative_points) as separate SAM3_POINTS_PROMPT outputs
-        """
-        # Create cache key from inputs
-        import hashlib
+        # Cache key
         h = hashlib.md5()
-        h.update(str(image.shape).encode())
+        h.update(str(display.shape).encode())
         h.update(coordinates.encode())
         h.update(neg_coordinates.encode())
+        h.update(str(frame_idx).encode())
+        h.update(str(animal_id).encode())
+        if mask_frames is not None:
+            h.update(str(mask_frames.shape).encode())
+        elif mask_video_path:
+            h.update(mask_video_path.encode())
         cache_key = h.hexdigest()
 
-        # Check if we have cached result
-        if cache_key in SAM3PointCollector._cache:
-            cached = SAM3PointCollector._cache[cache_key]
-            log.info(f"CACHE HIT - returning cached result for key={cache_key[:8]}")
-            # Still need to return UI update
-            img_base64 = self.tensor_to_base64(image)
+        img_base64 = self.tensor_to_base64(display)
+
+        # Helper to build full UI dict (used by both cache-hit and cache-miss paths)
+        def _build_ui(total_frames_n):
+            has_mask = mask_frames is not None or bool(mask_video_path and mask_video_path.strip())
             return {
-                "ui": {"bg_image": [img_base64]},
-                "result": cached  # Return the SAME objects
+                "bg_image":       [img_base64],
+                "node_id":        [str(unique_id) if unique_id else ""],
+                "total_frames":   [str(total_frames_n)],
+                "fps":            ["4"],
+                "frame_idx":      [str(frame_idx)],
+                "has_mask_video": ["1" if has_mask else "0"],
             }
 
-        log.info(f"CACHE MISS - computing new result for key={cache_key[:8]}")
+        if cache_key in SAM3PointCollector._cache:
+            log.info(f"CACHE HIT - SAM3PointCollector key={cache_key[:8]}")
+            # Still update mask path cache and total_frames for UI
+            tf = 1
+            if unique_id is not None:
+                if video_frames is not None:
+                    _POINT_COLLECTOR_FRAMES[str(unique_id)] = video_frames
+                    tf = video_frames.shape[0]
+                elif image is not None:
+                    _POINT_COLLECTOR_FRAMES[str(unique_id)] = image
+                    tf = image.shape[0]
+                if mask_frames is not None:
+                    _POINT_COLLECTOR_MASK_TENSORS[str(unique_id)] = mask_frames
+                    _POINT_COLLECTOR_MASK_PATHS.pop(str(unique_id), None)
+                elif mask_video_path and mask_video_path.strip():
+                    _POINT_COLLECTOR_MASK_PATHS[str(unique_id)] = mask_video_path.strip()
+                    _POINT_COLLECTOR_MASK_TENSORS.pop(str(unique_id), None)
+                else:
+                    _POINT_COLLECTOR_MASK_PATHS.pop(str(unique_id), None)
+                    _POINT_COLLECTOR_MASK_TENSORS.pop(str(unique_id), None)
+            return {
+                "ui": _build_ui(tf),
+                "result": SAM3PointCollector._cache[cache_key],
+            }
 
-        # Parse coordinates from JSON
+        log.info(f"CACHE MISS - SAM3PointCollector key={cache_key[:8]}")
+
         try:
             pos_coords = json.loads(coordinates) if coordinates and coordinates.strip() else []
             neg_coords = json.loads(neg_coordinates) if neg_coordinates and neg_coordinates.strip() else []
         except json.JSONDecodeError:
-            pos_coords = []
-            neg_coords = []
+            pos_coords, neg_coords = [], []
 
-        log.info(f"Collected {len(pos_coords)} positive, {len(neg_coords)} negative points")
+        img_height, img_width = display.shape[1], display.shape[2]
+        log.info(f"frame={frame_idx} animal={animal_id} img={img_width}x{img_height} "
+                 f"pos={len(pos_coords)} neg={len(neg_coords)}")
 
-        # Get image dimensions for normalization
-        img_height, img_width = image.shape[1], image.shape[2]
-        log.info(f"Image dimensions: {img_width}x{img_height}")
-
-        # Convert to SAM3 point format - separate positive and negative outputs
-        # SAM3 expects normalized coordinates (0-1), so divide by image dimensions
         positive_points = {"points": [], "labels": []}
         negative_points = {"points": [], "labels": []}
 
-        # Add positive points (label = 1) - normalize to 0-1
         for p in pos_coords:
-            normalized_x = p['x'] / img_width
-            normalized_y = p['y'] / img_height
-            positive_points["points"].append([normalized_x, normalized_y])
+            nx, ny = p['x'] / img_width, p['y'] / img_height
+            positive_points["points"].append([nx, ny])
             positive_points["labels"].append(1)
-            log.info(f"  Positive point: ({p['x']:.1f}, {p['y']:.1f}) -> ({normalized_x:.3f}, {normalized_y:.3f})")
 
-        # Add negative points (label = 0) - normalize to 0-1
         for n in neg_coords:
-            normalized_x = n['x'] / img_width
-            normalized_y = n['y'] / img_height
-            negative_points["points"].append([normalized_x, normalized_y])
+            nx, ny = n['x'] / img_width, n['y'] / img_height
+            negative_points["points"].append([nx, ny])
             negative_points["labels"].append(0)
-            log.info(f"  Negative point: ({n['x']:.1f}, {n['y']:.1f}) -> ({normalized_x:.3f}, {normalized_y:.3f})")
 
-        log.info(f"Output: {len(positive_points['points'])} positive, {len(negative_points['points'])} negative")
+        # Build single_prompt (pixel coords + metadata for accumulator)
+        pts_px, labels = [], []
+        for p in pos_coords:
+            pts_px.append([float(p['x']), float(p['y'])])
+            labels.append(1)
+        for n in neg_coords:
+            pts_px.append([float(n['x']), float(n['y'])])
+            labels.append(0)
 
-        # Cache the result
-        result = (positive_points, negative_points)
+        single_prompt = None
+        if pts_px:
+            single_prompt = {
+                "frame_idx": frame_idx,
+                "obj_id":    animal_id,
+                "points":    pts_px,
+                "labels":    labels,
+                "img_width":  img_width,
+                "img_height": img_height,
+            }
+
+        result = (positive_points, negative_points, single_prompt)
         SAM3PointCollector._cache[cache_key] = result
 
-        # Send image back to widget as base64
-        img_base64 = self.tensor_to_base64(image)
+        # Cache video frames for on-demand frame serving
+        total_frames = 1
+        if unique_id is not None:
+            if video_frames is not None:
+                _POINT_COLLECTOR_FRAMES[str(unique_id)] = video_frames
+                total_frames = video_frames.shape[0]
+            elif image is not None:
+                _POINT_COLLECTOR_FRAMES[str(unique_id)] = image
+                total_frames = image.shape[0]
+            # Cache mask source (tensor takes priority over file path)
+            if mask_frames is not None:
+                _POINT_COLLECTOR_MASK_TENSORS[str(unique_id)] = mask_frames
+                _POINT_COLLECTOR_MASK_PATHS.pop(str(unique_id), None)
+            elif mask_video_path and mask_video_path.strip():
+                _POINT_COLLECTOR_MASK_PATHS[str(unique_id)] = mask_video_path.strip()
+                _POINT_COLLECTOR_MASK_TENSORS.pop(str(unique_id), None)
+            else:
+                _POINT_COLLECTOR_MASK_PATHS.pop(str(unique_id), None)
+                _POINT_COLLECTOR_MASK_TENSORS.pop(str(unique_id), None)
 
         return {
-            "ui": {"bg_image": [img_base64]},
-            "result": result
+            "ui": _build_ui(total_frames),
+            "result": result,
         }
 
     def tensor_to_base64(self, tensor):
         """Convert ComfyUI image tensor to base64 string for JavaScript widget"""
-        # Convert from [B, H, W, C] to PIL Image
-        # Take first image if batch
         img_array = tensor[0].cpu().numpy()
-        # Convert from 0-1 float to 0-255 uint8
         img_array = (img_array * 255).astype(np.uint8)
         pil_img = Image.fromarray(img_array)
-
-        # Convert to base64
         buffered = io.BytesIO()
         pil_img.save(buffered, format="JPEG", quality=75)
-        img_bytes = buffered.getvalue()
-        img_base64 = base64.b64encode(img_bytes).decode('utf-8')
-
-        return img_base64
+        return base64.b64encode(buffered.getvalue()).decode('utf-8')
 
 
 class SAM3BBoxCollector:
@@ -876,6 +960,108 @@ if _SERVER_AVAILABLE:
         except Exception as exc:
             log.exception("Interactive segmentation failed")
             return web.json_response({"error": str(exc)}, status=500)
+
+    @server.PromptServer.instance.routes.post("/sam3/get_frame")
+    async def _get_frame_handler(request):
+        """Return a single video frame as JPEG for the PointCollector slider."""
+        try:
+            body = await request.json()
+        except Exception:
+            return web.Response(status=400)
+
+        node_id   = str(body.get("node_id", ""))
+        frame_idx = int(body.get("frame_idx", 0))
+
+        frames = _POINT_COLLECTOR_FRAMES.get(node_id)
+        if frames is None:
+            return web.Response(status=404)
+
+        idx = max(0, min(frame_idx, frames.shape[0] - 1))
+        frame_np = frames[idx].cpu().numpy()
+        frame_np = (frame_np * 255).astype(np.uint8)
+        pil_img  = Image.fromarray(frame_np)
+
+        buf = io.BytesIO()
+        pil_img.save(buf, format="JPEG", quality=80)
+        buf.seek(0)
+        return web.Response(body=buf.read(), content_type="image/jpeg")
+
+    @server.PromptServer.instance.routes.get("/sam3/list_videos")
+    async def _list_videos_handler(request):
+        """List .mp4 files under ComfyUI's output directory for the file picker."""
+        import os
+        import folder_paths
+
+        output_dir = folder_paths.get_output_directory()
+        video_files = []
+
+        for root, dirs, files in os.walk(output_dir):
+            # Skip hidden directories
+            dirs[:] = [d for d in dirs if not d.startswith('.')]
+            for fname in sorted(files):
+                if fname.lower().endswith(('.mp4', '.avi', '.mov', '.webm')):
+                    full_path = os.path.join(root, fname)
+                    rel_path  = os.path.relpath(full_path, output_dir)
+                    video_files.append({
+                        "path": full_path,
+                        "label": rel_path,
+                        "mtime": os.path.getmtime(full_path),
+                    })
+
+        # Sort newest first
+        video_files.sort(key=lambda x: x["mtime"], reverse=True)
+        return web.json_response(video_files)
+
+    @server.PromptServer.instance.routes.post("/sam3/get_mask_frame")
+    async def _get_mask_frame_handler(request):
+        """Return a single mask frame as JPEG for overlay in PointCollector.
+        Tensor cache (mask_frames input) takes priority over file path."""
+        try:
+            body = await request.json()
+        except Exception:
+            return web.Response(status=400)
+
+        node_id   = str(body.get("node_id", ""))
+        frame_idx = int(body.get("frame_idx", 0))
+
+        # --- Try tensor cache first (from visualization output) ---
+        tensors = _POINT_COLLECTOR_MASK_TENSORS.get(node_id)
+        if tensors is not None:
+            idx = max(0, min(frame_idx, tensors.shape[0] - 1))
+            frame_np = tensors[idx].cpu().numpy()
+            frame_np = (frame_np * 255).astype(np.uint8)
+            pil_img  = Image.fromarray(frame_np)
+            buf = io.BytesIO()
+            pil_img.save(buf, format="JPEG", quality=85)
+            buf.seek(0)
+            return web.Response(body=buf.read(), content_type="image/jpeg")
+
+        # --- Fallback: file path ---
+        import cv2
+        path = _POINT_COLLECTOR_MASK_PATHS.get(node_id)
+        if not path:
+            return web.Response(status=404)
+
+        cap = cv2.VideoCapture(path)
+        if not cap.isOpened():
+            return web.Response(status=404)
+
+        total = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        idx   = max(0, min(frame_idx, total - 1))
+        cap.set(cv2.CAP_PROP_POS_FRAMES, idx)
+        ret, frame = cap.read()
+        cap.release()
+
+        if not ret:
+            return web.Response(status=404)
+
+        frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        pil_img   = Image.fromarray(frame_rgb)
+
+        buf = io.BytesIO()
+        pil_img.save(buf, format="JPEG", quality=85)
+        buf.seek(0)
+        return web.Response(body=buf.read(), content_type="image/jpeg")
 
 
 # Node mappings for ComfyUI registration

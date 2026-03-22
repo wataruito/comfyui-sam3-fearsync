@@ -18,6 +18,7 @@ import hashlib
 import json
 import logging
 import os
+from datetime import datetime
 
 import numpy as np
 import torch
@@ -39,7 +40,6 @@ from .video_state import (
     create_video_state,
     create_video_state_from_file,
 )
-from .inference_reconstructor import get_inference_state
 from .utils import print_mem
 
 
@@ -256,6 +256,9 @@ class SAM3FrameCorrector:
                 "new_correction": ("SAM3_SINGLE_PROMPT", {
                     "tooltip": "Single correction prompt from SAM3PointCollector.",
                 }),
+                "video_frames": ("IMAGE", {
+                    "tooltip": "Video frames (from Load Video). Used to rebuild the session if temp files were deleted.",
+                }),
             },
         }
 
@@ -267,11 +270,63 @@ class SAM3FrameCorrector:
 
     @classmethod
     def IS_CHANGED(cls, sam3_model, masks, video_state,
-                   correction_store, new_correction=None):
+                   correction_store, new_correction=None, video_frames=None):
         return float("nan")
 
+    def _segment_frame(self, sam3_model, frame_tensor, obj_id, pts_norm, labels):
+        """
+        Segment a single frame using the SAM3 image predictor (predict_inst).
+        Uses point prompts directly on one frame — no propagation or session needed.
+
+        Args:
+            frame_tensor: [H, W, C] float32 ComfyUI image tensor (0–1)
+            obj_id: object id (1-indexed, unused for image predictor but kept for API compat)
+            pts_norm: normalized point coords [[x, y], ...]  (0–1)
+            labels: point labels [1=positive, 0=negative, ...]
+
+        Returns:
+            2-D float tensor [H, W] (0/1) on CPU, or None on failure
+        """
+        try:
+            import comfy.model_management
+            from PIL import Image as PILImage
+
+            comfy.model_management.load_models_gpu([sam3_model])
+
+            frame_np = (frame_tensor.cpu().numpy() * 255).astype(np.uint8)
+            pil_img = PILImage.fromarray(frame_np)
+
+            processor = sam3_model.processor
+            model = processor.model
+            if hasattr(processor, "sync_device_with_model"):
+                processor.sync_device_with_model()
+
+            state = processor.set_image(pil_img)
+
+            pts_np    = np.array(pts_norm, dtype=np.float32)
+            labels_np = np.array(labels,   dtype=np.int32)
+
+            masks_np, scores_np, _ = model.predict_inst(
+                state,
+                point_coords=pts_np,
+                point_labels=labels_np,
+                box=None,
+                mask_input=None,
+                multimask_output=True,
+                normalize_coords=False,  # pts_np is already 0-1 normalized
+            )
+
+            best_idx = int(np.argmax(scores_np))
+            mask = torch.from_numpy(masks_np[best_idx]).float()   # [H, W]
+            log.info(f"_segment_frame: mask shape={mask.shape} score={scores_np[best_idx]:.3f}")
+            return mask
+
+        except Exception as e:
+            log.warning(f"_segment_frame failed: {e}")
+            return None
+
     def correct(self, sam3_model, masks, video_state,
-                correction_store, new_correction=None):
+                correction_store, new_correction=None, video_frames=None):
 
         # ── Load accumulated corrections ──────────────────────────────────
         try:
@@ -299,20 +354,20 @@ class SAM3FrameCorrector:
                 "result": (masks,),
             }
 
-        # ── Ensure the SAM3 session is alive ──────────────────────────────
-        session_id = video_state.session_uuid
-        try:
-            # Probe: check session exists
-            if session_id not in sam3_model._ALL_INFERENCE_STATES:
-                raise KeyError(f"Session {session_id[:8]} not found")
-        except Exception as e:
-            log.info(f"Session not found ({e}), reconstructing from video_state")
-            get_inference_state(sam3_model, video_state)
+        if video_frames is None:
+            log.warning("video_frames not connected; corrections require the video_frames input")
+            return {
+                "ui": {
+                    "correction_store": [updated_store],
+                    "correction_count": [str(len(corrections))],
+                },
+                "result": (masks,),
+            }
 
         # ── Work on a shallow copy of masks dict ──────────────────────────
         corrected = dict(masks)
 
-        # ── Apply each correction ─────────────────────────────────────────
+        # ── Apply each correction via single-frame mini-session ───────────
         for entry in corrections:
             frame_idx = entry["frame_idx"]
             obj_id    = entry["obj_id"]
@@ -327,40 +382,17 @@ class SAM3FrameCorrector:
                 log.warning(f"Frame {frame_idx} not in base masks, skipping")
                 continue
 
-            # Call add_prompt → single-frame segmentation result
-            try:
-                result = sam3_model.add_prompt(
-                    session_id=session_id,
-                    frame_idx=frame_idx,
-                    obj_id=obj_id,
-                    points=pts_norm,
-                    point_labels=labels,
-                )
-            except Exception as e:
-                log.warning(f"add_prompt failed ({e}), reconstructing session and retrying")
-                get_inference_state(sam3_model, video_state)
-                result = sam3_model.add_prompt(
-                    session_id=session_id,
-                    frame_idx=frame_idx,
-                    obj_id=obj_id,
-                    points=pts_norm,
-                    point_labels=labels,
-                )
-
-            if not isinstance(result, dict):
-                log.warning(f"Unexpected add_prompt result type: {type(result)}")
+            if frame_idx >= video_frames.shape[0]:
+                log.warning(f"frame_idx {frame_idx} out of video range ({video_frames.shape[0]}), skipping")
                 continue
 
-            outputs = result.get("outputs", {})
-            corr_raw = None
-            for key in ["out_binary_masks", "video_res_masks", "masks"]:
-                if outputs and key in outputs and outputs[key] is not None:
-                    corr_raw = outputs[key]
-                    break
+            log.info(f"Correcting frame={frame_idx} obj={obj_id} pts={len(pts_px)}")
+            corr_raw = self._segment_frame(
+                sam3_model, video_frames[frame_idx], obj_id, pts_norm, labels
+            )
 
             if corr_raw is None:
-                log.warning(f"No mask from add_prompt at frame {frame_idx} obj={obj_id}. "
-                            f"Keys: {list(outputs.keys()) if outputs else []}")
+                log.warning(f"No mask for frame {frame_idx} obj={obj_id}, skipping")
                 continue
 
             if hasattr(corr_raw, "cpu"):
@@ -380,11 +412,11 @@ class SAM3FrameCorrector:
                 base_mask = base_mask.squeeze(0)
 
             merged = base_mask.clone().float()
-            if merged.max() > 1.0:
+            if merged.numel() > 0 and merged.max() > 1.0:
                 merged = merged / 255.0
 
             corr_f = corr_raw.float()
-            if corr_f.max() > 1.0:
+            if corr_f.numel() > 0 and corr_f.max() > 1.0:
                 corr_f = corr_f / 255.0
 
             # obj_id is 1-indexed; tensor channel is 0-indexed
@@ -394,6 +426,9 @@ class SAM3FrameCorrector:
             if corr_f.dim() == 2:
                 corr_single = corr_f
             elif corr_f.dim() == 3:
+                if corr_f.shape[0] == 0:
+                    log.warning(f"add_prompt returned 0 objects at frame {frame_idx}, skipping")
+                    continue
                 ch = obj_ch if obj_ch < corr_f.shape[0] else 0
                 corr_single = corr_f[ch]
             else:
@@ -404,25 +439,39 @@ class SAM3FrameCorrector:
                 log.warning(f"obj_ch {obj_ch} >= num_objects {merged.shape[0]}, skipping")
                 continue
 
-            # UNION
             corr_bin = (corr_single > 0.5).float()
             base_bin = (merged[obj_ch] > 0.5).float()
-            union_bin = (base_bin + corr_bin).clamp(0, 1)
+
+            has_pos = any(l == 1 for l in labels)
+            has_neg = any(l == 0 for l in labels)
+
+            if has_pos and not has_neg:
+                # Positive only: UNION — add missing regions
+                new_bin = (base_bin + corr_bin).clamp(0, 1)
+                mode = "UNION"
+            elif has_neg and not has_pos:
+                # Negative only: INTERSECTION — remove false positives
+                new_bin = base_bin * corr_bin
+                mode = "INTERSECT"
+            else:
+                # Mixed: REPLACE with predictor result
+                new_bin = corr_bin
+                mode = "REPLACE"
 
             # Other objects take priority (corrected object yields)
             for other_ch in range(merged.shape[0]):
                 if other_ch == obj_ch:
                     continue
                 other_bin = (merged[other_ch] > 0.5).float()
-                union_bin = union_bin * (1.0 - other_bin)
+                new_bin = new_bin * (1.0 - other_bin)
 
-            merged[obj_ch] = union_bin
+            merged[obj_ch] = new_bin
             corrected[frame_idx] = merged
 
-            added_px = int((union_bin - base_bin).clamp(0, 1).sum().item())
-            log.info(f"Frame {frame_idx}: obj_id={obj_id} (ch={obj_ch}) "
-                     f"{int(base_bin.sum())} → {int(union_bin.sum())} px "
-                     f"(+{added_px} px added)")
+            delta = int(new_bin.sum().item()) - int(base_bin.sum().item())
+            log.info(f"Frame {frame_idx}: obj_id={obj_id} (ch={obj_ch}) [{mode}] "
+                     f"{int(base_bin.sum())} → {int(new_bin.sum())} px "
+                     f"({delta:+d} px)")
 
         return {
             "ui": {
@@ -480,7 +529,8 @@ class SAM3SavePropagation:
         out_dir = os.path.join(folder_paths.get_output_directory(), "sam3_propagation")
         os.makedirs(out_dir, exist_ok=True)
 
-        save_path = os.path.join(out_dir, f"{filename}.pt")
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        save_path = os.path.join(out_dir, f"{filename}_{ts}.pt")
 
         data = {
             "masks": masks,
@@ -606,6 +656,18 @@ if _SERVER_AVAILABLE:
         print("=" * 60 + "\n")
 
         return web.json_response({"count": len(corrections)})
+
+    @server.PromptServer.instance.routes.get("/sam3/list_propagations")
+    async def _list_propagations_handler(request):
+        import folder_paths
+        out_dir = os.path.join(folder_paths.get_output_directory(), "sam3_propagation")
+        files = []
+        if os.path.isdir(out_dir):
+            for fname in sorted(os.listdir(out_dir), reverse=True):
+                if fname.endswith(".pt"):
+                    full = os.path.join(out_dir, fname)
+                    files.append({"path": full, "label": fname})
+        return web.json_response(files)
 
 
 # =============================================================================

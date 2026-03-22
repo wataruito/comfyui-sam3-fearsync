@@ -574,11 +574,14 @@ class SAM3VideoOutput:
                     "default": True,
                     "tooltip": "Show all object masks in visualization (True) or only selected obj_id (False)"
                 }),
+                "video_frames": ("IMAGE", {
+                    "tooltip": "Original video frames (fallback when temp_dir JPEGs are unavailable, e.g. after SAM3LoadPropagation)"
+                }),
             }
         }
 
     @classmethod
-    def IS_CHANGED(cls, masks, video_state, scores=None, obj_id=-1, plot_all_masks=True):
+    def IS_CHANGED(cls, masks, video_state, scores=None, obj_id=-1, plot_all_masks=True, video_frames=None):
         # Always re-run this node when params change, but this is cheap
         # The key is that changing these here does NOT invalidate upstream cache
         # ComfyUI caches based on input values - masks/video_state don't change
@@ -684,7 +687,7 @@ class SAM3VideoOutput:
             elif char == ' ':
                 curr_x += char_width  # Space
 
-    def extract(self, masks, video_state, scores=None, obj_id=-1, plot_all_masks=True):
+    def extract(self, masks, video_state, scores=None, obj_id=-1, plot_all_masks=True, video_frames=None):
         """Extract all masks as a batch [N, H, W] using memory-mapped streaming.
 
         Uses numpy.memmap to write output directly to disk, avoiding OOM for large videos.
@@ -752,12 +755,15 @@ class SAM3VideoOutput:
         # Process ONE frame at a time, write directly to disk
         # ============================================================
         for frame_idx in range(num_frames):
-            # Load original frame from disk (already stored as JPEG)
+            # Load original frame: prefer JPEG on disk, fall back to video_frames tensor
             frame_path_jpg = os.path.join(video_state.temp_dir, f"{frame_idx:05d}.jpg")
             if os.path.exists(frame_path_jpg):
                 img = Image.open(frame_path_jpg).convert("RGB")
                 img_np = np.array(img).astype(np.float32) / 255.0
                 img_tensor = torch.from_numpy(img_np)  # [H, W, C]
+            elif video_frames is not None and frame_idx < video_frames.shape[0]:
+                img_tensor = video_frames[frame_idx].float()  # [H, W, C]
+                img_np = img_tensor.cpu().numpy()
             else:
                 img_np = np.zeros((h, w, 3), dtype=np.float32)
                 img_tensor = torch.from_numpy(img_np)

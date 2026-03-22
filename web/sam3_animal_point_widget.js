@@ -9,6 +9,12 @@ import { ComfyWidgets } from "../../scripts/widgets.js";
 
 console.log("[SAM3] ===== VERSION 8 - SERIALIZATION ENABLED =====");
 
+// VHS resize pattern: fit node height to aspect ratio
+function fitHeight(node) {
+    node.setSize([node.size[0], node.computeSize([node.size[0], node.size[1]])[1]]);
+    node?.graph?.setDirtyCanvas(true);
+}
+
 // Helper function to properly hide widgets (enhanced for complete hiding)
 function hideWidgetForGood(node, widget, suffix = '') {
     if (!widget) return;
@@ -61,7 +67,7 @@ app.registerExtension({
                 console.log("[SAM3] Creating canvas container");
                 // Create canvas container - dynamically sized based on node height
                 const container = document.createElement("div");
-                container.style.cssText = "position: relative; width: 100%; background: #222; overflow: hidden; box-sizing: border-box; margin: 0; padding: 0; display: flex; align-items: center; justify-content: center;";
+                container.style.cssText = "position: relative; width: 100%; height: 100%; background: #222; overflow: hidden; box-sizing: border-box; margin: 0; padding: 0; display: flex; align-items: center; justify-content: center;";
 
                 // Create info/button bar
                 const infoBar = document.createElement("div");
@@ -128,27 +134,87 @@ app.registerExtension({
                     image: null,
                     maskImage: null,
                     showMask: false,
+                    aspectRatio: null,
                     positivePoints: [],
                     negativePoints: [],
                     hoveredPoint: null,
                     pointsCounter: pointsCounter
                 };
 
-                // Add as DOM widget
-                console.log("[SAM3] Adding DOM widget via addDOMWidget");
-                const widget = this.addDOMWidget("canvas", "customCanvas", container);
-                console.log("[SAM3] addDOMWidget returned:", widget);
+                // ── mask_video_path file selector (above canvas) ──────────
+                {
+                    const row = document.createElement("div");
+                    row.style.cssText = "display:flex;align-items:center;gap:4px;"
+                                      + "padding:2px 6px;box-sizing:border-box;width:100%;";
 
-                // Store widget reference for updates
-                this.canvasWidget.domWidget = widget;
+                    const sel = document.createElement("select");
+                    sel.style.cssText = "flex:1;background:#2a2a2a;color:#ddd;border:1px solid #555;"
+                                      + "border-radius:3px;padding:2px 4px;font-size:11px;"
+                                      + "font-family:monospace;min-width:0;";
+                    const placeholder = document.createElement("option");
+                    placeholder.value = "";
+                    placeholder.textContent = "— click 🔄 to load videos —";
+                    sel.appendChild(placeholder);
+                    row.appendChild(sel);
 
-                // Static widget height - updated explicitly on resize/image load
-                this.canvasWidget.widgetHeight = 300; // Default initial height
-                widget.computeSize = (width) => {
-                    return [width, this.canvasWidget.widgetHeight];
-                };
+                    const refreshBtn = document.createElement("button");
+                    refreshBtn.textContent = "🔄";
+                    refreshBtn.title = "Refresh video list";
+                    refreshBtn.style.cssText = "padding:2px 6px;background:#444;color:#fff;"
+                                             + "border:1px solid #666;border-radius:3px;cursor:pointer;font-size:13px;";
+                    refreshBtn.onmouseover = () => refreshBtn.style.background = "#555";
+                    refreshBtn.onmouseout  = () => refreshBtn.style.background = "#444";
+                    row.appendChild(refreshBtn);
 
-                // ── Video playback controls ───────────────────────────────
+                    const loadVideos = async () => {
+                        refreshBtn.textContent = "⏳";
+                        try {
+                            const resp  = await fetch("/sam3/list_videos");
+                            const files = await resp.json();
+                            const mvpWidget = this.widgets?.find(w => w.name === "mask_video_path");
+                            const current   = mvpWidget?.value || "";
+                            sel.innerHTML   = "";
+                            const ph = document.createElement("option");
+                            ph.value = ""; ph.textContent = "— select a video —";
+                            sel.appendChild(ph);
+                            files.forEach(f => {
+                                const opt = document.createElement("option");
+                                opt.value = f.path;
+                                opt.textContent = f.label;
+                                if (f.path === current) opt.selected = true;
+                                sel.appendChild(opt);
+                            });
+                        } catch (e) {
+                            const opt = document.createElement("option");
+                            opt.value = ""; opt.textContent = "Error loading list";
+                            sel.innerHTML = ""; sel.appendChild(opt);
+                        }
+                        refreshBtn.textContent = "🔄";
+                    };
+
+                    refreshBtn.addEventListener("click", (e) => {
+                        e.preventDefault(); e.stopPropagation();
+                        loadVideos();
+                    });
+
+                    sel.addEventListener("change", () => {
+                        if (!sel.value) return;
+                        const mvpWidget = this.widgets?.find(w => w.name === "mask_video_path");
+                        if (mvpWidget) {
+                            mvpWidget.value = sel.value;
+                            const el = mvpWidget.element || mvpWidget.inputEl;
+                            if (el) el.value = sel.value;
+                        }
+                    });
+
+                    const browseWidget = this.addDOMWidget("mask_browse", "maskBrowse", row);
+                    browseWidget.computeSize = (width) => [width, 26];
+
+                    setTimeout(loadVideos, 300);
+                }
+                // ── end file selector ──────────────────────────────────
+
+                // ── Video playback controls (above canvas) ───────────────
                 const controls = document.createElement("div");
                 controls.style.cssText = "display:flex;align-items:center;gap:5px;padding:4px 6px;"
                                        + "background:#1a1a1a;box-sizing:border-box;width:100%;";
@@ -179,6 +245,40 @@ app.registerExtension({
 
                 const ctrlWidget = this.addDOMWidget("controls", "videoControls", controls);
                 ctrlWidget.computeSize = (width) => [width, 30];
+
+                // Add canvas as DOM widget (below file selector and controls).
+                console.log("[SAM3] Adding DOM widget via addDOMWidget");
+                const widget = this.addDOMWidget("canvas", "customCanvas", container);
+                console.log("[SAM3] addDOMWidget returned:", widget);
+
+                // Store widget reference for updates
+                this.canvasWidget.domWidget = widget;
+
+                // setCanvasHeight: updates computedHeight (LiteGraph) and container CSS.
+                const setCanvasHeight = (h) => {
+                    h = Math.max(50, h);
+                    widget.computedHeight = h + 10;
+                    container.style.height = h + "px";
+                };
+
+                widget.computeSize = (width) => {
+                    if (this.canvasWidget.aspectRatio) {
+                        const h = Math.max(50, (this.size[0] - 20) / this.canvasWidget.aspectRatio);
+                        setCanvasHeight(h);
+                        return [width, h];
+                    }
+                    setCanvasHeight(300);
+                    return [width, 300];
+                };
+
+                // onResize: enforce aspect-ratio height for any resize direction.
+                // Modifies size[1] in-place so the window snaps to the video size.
+                this.onResize = (size) => {
+                    if (!this.canvasWidget.aspectRatio) return;
+                    const h = Math.max(50, (size[0] - 20) / this.canvasWidget.aspectRatio);
+                    setCanvasHeight(h);
+                    size[1] = this.computeSize([size[0], 0])[1];
+                };
 
                 // Video state
                 this.videoState = {
@@ -223,15 +323,9 @@ app.registerExtension({
                             this.canvasWidget.image = img;
                             canvas.width  = img.width;
                             canvas.height = img.height;
-                            const nodeWidth = this.size[0] || 400;
-                            const newH = Math.max(100, Math.round((nodeWidth - 20) * img.height / img.width));
-                            if (Math.abs(newH - this.canvasWidget.widgetHeight) > 2) {
-                                this._isResizing = true;
-                                this.canvasWidget.widgetHeight = newH;
-                                container.style.height = newH + "px";
-                                this.setSize([nodeWidth, this.computeSize()[1]]);
-                                this._isResizing = false;
-                            }
+                            this.canvasWidget.aspectRatio = img.width / img.height;
+                            setCanvasHeight(Math.max(50, (this.size[0] - 20) / this.canvasWidget.aspectRatio));
+                            fitHeight(this);
                             this.redrawCanvas();
                         };
                         img.src = url;
@@ -454,138 +548,30 @@ app.registerExtension({
                         img.onload = () => {
                             console.log(`[SAM3] Image loaded: ${img.width}x${img.height}`);
                             this.canvasWidget.image = img;
-                            canvas.width = img.width;
+                            canvas.width  = img.width;
                             canvas.height = img.height;
-
-                            const nodeWidth = this.size[0] || 400;
-                            const newWidgetHeight = Math.max(100, Math.round((nodeWidth - 20) * img.height / img.width));
-                            if (Math.abs(newWidgetHeight - this.canvasWidget.widgetHeight) > 2) {
-                                this._isResizing = true;
-                                this.canvasWidget.widgetHeight = newWidgetHeight;
-                                container.style.height = newWidgetHeight + "px";
-                                this.setSize([nodeWidth, this.computeSize()[1]]);
-                                this._isResizing = false;
-                            }
-
-                            console.log(`[SAM3] Widget resized to match image: ${newWidgetHeight}px`);
+                            this.canvasWidget.aspectRatio = img.width / img.height;
+                            setCanvasHeight(Math.max(50, (this.size[0] - 20) / this.canvasWidget.aspectRatio));
+                            fitHeight(this);
                             this.redrawCanvas();
                         };
                         img.src = "data:image/jpeg;base64," + message.bg_image[0];
                     }
                 };
 
-                // Handle manual node resize (user dragging)
-                const originalOnResize = this.onResize;
-                this.onResize = function(size) {
-                    if (originalOnResize) {
-                        originalOnResize.apply(this, arguments);
-                    }
 
-                    // Prevent feedback loop
-                    if (this._isResizing) return;
-                    this._isResizing = true;
-
-                    // Derive canvas height from node height (controls=30, browse=26, title+padding=80)
-                    const newH = Math.max(100, size[1] - 80 - 30 - 26);
-
-                    if (Math.abs(newH - this.canvasWidget.widgetHeight) > 5) {
-                        this.canvasWidget.widgetHeight = newH;
-                        container.style.height = newH + "px";
-                        this.redrawCanvas();
-                    }
-
-                    // Delayed reset to absorb any async reflow from LiteGraph
-                    setTimeout(() => { this._isResizing = false; }, 50);
-                };
-
-                // ── mask_video_path file selector ─────────────────────
-                {
-                    const row = document.createElement("div");
-                    row.style.cssText = "display:flex;align-items:center;gap:4px;"
-                                      + "padding:2px 6px;box-sizing:border-box;width:100%;";
-
-                    const sel = document.createElement("select");
-                    sel.style.cssText = "flex:1;background:#2a2a2a;color:#ddd;border:1px solid #555;"
-                                      + "border-radius:3px;padding:2px 4px;font-size:11px;"
-                                      + "font-family:monospace;min-width:0;";
-                    const placeholder = document.createElement("option");
-                    placeholder.value = "";
-                    placeholder.textContent = "— click 🔄 to load videos —";
-                    sel.appendChild(placeholder);
-                    row.appendChild(sel);
-
-                    const refreshBtn = document.createElement("button");
-                    refreshBtn.textContent = "🔄";
-                    refreshBtn.title = "Refresh video list";
-                    refreshBtn.style.cssText = "padding:2px 6px;background:#444;color:#fff;"
-                                             + "border:1px solid #666;border-radius:3px;cursor:pointer;font-size:13px;";
-                    refreshBtn.onmouseover = () => refreshBtn.style.background = "#555";
-                    refreshBtn.onmouseout  = () => refreshBtn.style.background = "#444";
-                    row.appendChild(refreshBtn);
-
-                    const loadVideos = async () => {
-                        refreshBtn.textContent = "⏳";
-                        try {
-                            const resp  = await fetch("/sam3/list_videos");
-                            const files = await resp.json();
-                            // Preserve current selection
-                            const mvpWidget = this.widgets?.find(w => w.name === "mask_video_path");
-                            const current   = mvpWidget?.value || "";
-                            sel.innerHTML   = "";
-                            const ph = document.createElement("option");
-                            ph.value = ""; ph.textContent = "— select a video —";
-                            sel.appendChild(ph);
-                            files.forEach(f => {
-                                const opt = document.createElement("option");
-                                opt.value = f.path;
-                                opt.textContent = f.label;
-                                if (f.path === current) opt.selected = true;
-                                sel.appendChild(opt);
-                            });
-                        } catch (e) {
-                            const opt = document.createElement("option");
-                            opt.value = ""; opt.textContent = "Error loading list";
-                            sel.innerHTML = ""; sel.appendChild(opt);
-                        }
-                        refreshBtn.textContent = "🔄";
-                    };
-
-                    refreshBtn.addEventListener("click", (e) => {
-                        e.preventDefault(); e.stopPropagation();
-                        loadVideos();
-                    });
-
-                    sel.addEventListener("change", () => {
-                        if (!sel.value) return;
-                        const mvpWidget = this.widgets?.find(w => w.name === "mask_video_path");
-                        if (mvpWidget) {
-                            mvpWidget.value = sel.value;
-                            const el = mvpWidget.element || mvpWidget.inputEl;
-                            if (el) el.value = sel.value;
-                        }
-                    });
-
-                    const browseWidget = this.addDOMWidget("mask_browse", "maskBrowse", row);
-                    browseWidget.computeSize = (width) => [width, 26];
-
-                    // Auto-load on first render
-                    setTimeout(loadVideos, 300);
-                }
-                // ── end file selector ──────────────────────────────────
 
                 // Draw initial placeholder
                 console.log("[SAM3] Drawing initial placeholder");
                 this.redrawCanvas();
 
-                // Set initial node size (smaller default, will resize when image loads)
+                // Set initial node size (aspect ratio not known yet; uses 300px default)
                 const nodeWidth = Math.max(400, this.size[0] || 400);
-                const nodeHeight = 380; // Initial height: widget (300) + space (80)
-                this.setSize([nodeWidth, nodeHeight]);
+                this.size[0] = nodeWidth;
+                setCanvasHeight(300);
+                fitHeight(this);
 
-                // Set initial container height
-                container.style.height = "300px";
-
-                console.log("[SAM3] Node size set to:", [nodeWidth, nodeHeight]);
+                console.log("[SAM3] Node size set to:", this.size);
                 console.log("[SAM3] onNodeCreated complete");
                 return result;
             };

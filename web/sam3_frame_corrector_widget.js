@@ -112,7 +112,7 @@ app.registerExtension({
                     const linkInfo = app.graph.links[input.link];
                     if (!linkInfo) continue;
                     const upstream = app.graph.getNodeById(linkInfo.origin_id);
-                    if (upstream && upstream.type === "SAM3PointCollector") {
+                    if (upstream && (upstream.type === "SAM3PointCollector" || upstream.type === "SAM3AnimalPointCollector")) {
                         upstream.clearCanvas?.();
                     }
                 }

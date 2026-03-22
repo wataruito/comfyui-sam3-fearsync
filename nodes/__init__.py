@@ -19,7 +19,6 @@ from .sam3_two_mouse_nodes import NODE_CLASS_MAPPINGS as TWO_MOUSE_MAPPINGS
 from .sam3_two_mouse_nodes import NODE_DISPLAY_NAME_MAPPINGS as TWO_MOUSE_DISPLAY_MAPPINGS
 from .sam3_video_prompt_nodes import NODE_CLASS_MAPPINGS as VIDEO_PROMPT_MAPPINGS
 from .sam3_video_prompt_nodes import NODE_DISPLAY_NAME_MAPPINGS as VIDEO_PROMPT_DISPLAY_MAPPINGS
-
 # Combine all node mappings
 NODE_CLASS_MAPPINGS = {}
 NODE_CLASS_MAPPINGS.update(LOAD_MODEL_MAPPINGS)

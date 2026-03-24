@@ -13,6 +13,7 @@ import hashlib
 import logging
 import json
 import io
+import os
 import base64
 import threading
 
@@ -1151,6 +1152,48 @@ if _SERVER_AVAILABLE:
         # Sort newest first
         video_files.sort(key=lambda x: x["mtime"], reverse=True)
         return web.json_response(video_files)
+
+    _VIDEO_EXTS = {".mp4", ".avi", ".mov", ".webm", ".mkv"}
+
+    @server.PromptServer.instance.routes.get("/sam3/browse_videos")
+    async def _browse_videos_handler(request):
+        """Browse server-side directories for video files (for file-picker dialog)."""
+        import os
+        import folder_paths
+
+        path = request.query.get("path", "")
+        if not path:
+            path = folder_paths.get_output_directory()
+        path = os.path.normpath(os.path.realpath(path))
+        if not os.path.isdir(path):
+            return web.json_response({"error": "Not a directory"}, status=400)
+
+        entries = []
+        try:
+            for name in sorted(os.listdir(path)):
+                if name.startswith("."):
+                    continue
+                full = os.path.join(path, name)
+                if os.path.isdir(full):
+                    entries.append({"name": name, "path": full, "type": "dir"})
+                elif os.path.splitext(name)[1].lower() in _VIDEO_EXTS:
+                    try:
+                        st = os.stat(full)
+                        entries.append({
+                            "name": name, "path": full, "type": "file",
+                            "size": st.st_size, "mtime": st.st_mtime,
+                        })
+                    except OSError:
+                        pass
+        except PermissionError:
+            return web.json_response({"error": "Permission denied"}, status=403)
+
+        parent = os.path.dirname(path)
+        return web.json_response({
+            "current": path,
+            "parent":  parent if parent != path else None,
+            "entries": entries,
+        })
 
     @server.PromptServer.instance.routes.post("/sam3/get_mask_frame")
     async def _get_mask_frame_handler(request):

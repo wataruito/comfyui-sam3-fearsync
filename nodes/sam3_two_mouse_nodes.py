@@ -505,9 +505,9 @@ class SAM3SavePropagation:
                 "video_state": ("SAM3_VIDEO_STATE", {
                     "tooltip": "Video state from SAM3Propagate.",
                 }),
-                "filename": ("STRING", {
-                    "default": "sam3_result",
-                    "tooltip": "Filename (without extension). Saved under ComfyUI output/sam3_propagation/.",
+                "filename_prefix": ("STRING", {
+                    "default": "sam3_propagation",
+                    "tooltip": "Filename prefix. Saved as {prefix}_00001_.pt under ComfyUI output/.",
                 }),
             },
             "optional": {
@@ -523,14 +523,28 @@ class SAM3SavePropagation:
     CATEGORY = "SAM3/video"
     OUTPUT_NODE = True
 
-    def save(self, masks, video_state, filename, scores=None):
+    def save(self, masks, video_state, filename_prefix, scores=None):
+        import re
         import folder_paths
 
-        out_dir = os.path.join(folder_paths.get_output_directory(), "sam3_propagation")
+        base_dir = folder_paths.get_output_directory()
+
+        # Support subdirectory in prefix (e.g. "video/f402ab" → output/video/f402ab_*.pt)
+        prefix_dir  = os.path.dirname(filename_prefix)
+        prefix_base = os.path.basename(filename_prefix)
+        out_dir = os.path.join(base_dir, prefix_dir) if prefix_dir else base_dir
         os.makedirs(out_dir, exist_ok=True)
 
-        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-        save_path = os.path.join(out_dir, f"{filename}_{ts}.pt")
+        # Find next counter (same convention as SaveVideo: prefix_00001_.pt)
+        pattern = re.compile(rf"^{re.escape(prefix_base)}_(\d+)_\.pt$")
+        counter = 1
+        for name in os.listdir(out_dir):
+            m = pattern.match(name)
+            if m:
+                counter = max(counter, int(m.group(1)) + 1)
+
+        save_name = f"{prefix_base}_{counter:05d}_.pt"
+        save_path = os.path.join(out_dir, save_name)
 
         data = {
             "masks": masks,
@@ -563,7 +577,7 @@ class SAM3LoadPropagation:
             "required": {
                 "save_path": ("STRING", {
                     "default": "",
-                    "tooltip": "Full path to the .pt file saved by SAM3SavePropagation.",
+                    "tooltip": "Path to a .pt file, or a folder — latest .pt in the folder is loaded.",
                 }),
             },
         }
@@ -660,14 +674,130 @@ if _SERVER_AVAILABLE:
     @server.PromptServer.instance.routes.get("/sam3/list_propagations")
     async def _list_propagations_handler(request):
         import folder_paths
-        out_dir = os.path.join(folder_paths.get_output_directory(), "sam3_propagation")
+        out_dir = folder_paths.get_output_directory()
         files = []
         if os.path.isdir(out_dir):
-            for fname in sorted(os.listdir(out_dir), reverse=True):
-                if fname.endswith(".pt"):
-                    full = os.path.join(out_dir, fname)
-                    files.append({"path": full, "label": fname})
+            for root, dirs, fnames in os.walk(out_dir):
+                dirs.sort()
+                for fname in fnames:
+                    if fname.endswith(".pt"):
+                        full = os.path.join(root, fname)
+                        rel  = os.path.relpath(full, out_dir)
+                        files.append({"path": full, "label": rel})
+            files.sort(key=lambda x: os.path.getmtime(x["path"]), reverse=True)
         return web.json_response(files)
+
+    @server.PromptServer.instance.routes.get("/sam3/get_paths")
+    async def _get_paths_handler(request):
+        import folder_paths
+        return web.json_response({
+            "output": folder_paths.get_output_directory(),
+            "home":   os.path.expanduser("~"),
+        })
+
+    @server.PromptServer.instance.routes.get("/sam3/browse_files")
+    async def _browse_files_handler(request):
+        import folder_paths
+        path = request.query.get("path", "")
+        if not path:
+            path = folder_paths.get_output_directory()
+        path = os.path.normpath(os.path.realpath(path))
+        if not os.path.isdir(path):
+            return web.json_response({"error": "Not a directory"}, status=400)
+        entries = []
+        try:
+            for name in sorted(os.listdir(path)):
+                if name.startswith("."):
+                    continue
+                full = os.path.join(path, name)
+                if os.path.isdir(full):
+                    entries.append({"name": name, "path": full, "type": "dir"})
+                elif name.endswith(".pt"):
+                    try:
+                        st = os.stat(full)
+                        entries.append({
+                            "name": name, "path": full, "type": "file",
+                            "size": st.st_size, "mtime": st.st_mtime,
+                        })
+                    except OSError:
+                        pass
+        except PermissionError:
+            return web.json_response({"error": "Permission denied"}, status=403)
+        parent = os.path.dirname(path)
+        return web.json_response({
+            "current": path,
+            "parent":  parent if parent != path else None,
+            "entries": entries,
+        })
+
+    @server.PromptServer.instance.routes.get("/sam3/browse_dirs")
+    async def _browse_dirs_handler(request):
+        """Browse server-side directories (directory picker for SAM3OutputFolder)."""
+        import folder_paths
+        output_dir = folder_paths.get_output_directory()
+        path = request.query.get("path", "")
+        if not path:
+            path = output_dir
+        path = os.path.normpath(os.path.realpath(path))
+        if not os.path.isdir(path):
+            return web.json_response({"error": "Not a directory"}, status=400)
+        entries = []
+        try:
+            for name in sorted(os.listdir(path)):
+                if name.startswith("."):
+                    continue
+                full = os.path.join(path, name)
+                if os.path.isdir(full):
+                    entries.append({"name": name, "path": full, "type": "dir"})
+        except PermissionError:
+            return web.json_response({"error": "Permission denied"}, status=403)
+        parent = os.path.dirname(path)
+        return web.json_response({
+            "current":    path,
+            "parent":     parent if parent != path else None,
+            "entries":    entries,
+            "output_dir": output_dir,
+        })
+
+
+# =============================================================================
+# SAM3OutputFolder — set a common output subfolder for SaveVideo / SavePropagation
+# =============================================================================
+
+class SAM3OutputFolder:
+    """
+    Utility node: type a subfolder name once and wire it to SaveVideo and
+    SAM3SavePropagation so all outputs land in the same place.
+
+    Given folder = "f402ab":
+      masks  → "f402ab/masks"  (mask video)
+      visual → "f402ab/visual" (visualization video)
+      propa  → "f402ab/propa"  (propagation .pt file)
+    """
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "folder": ("STRING", {
+                    "default": "f402ab",
+                    "tooltip": "Base folder name. Outputs go to output/{folder}/masks, visual, propa.",
+                }),
+            }
+        }
+
+    RETURN_TYPES = ("STRING", "STRING", "STRING", "STRING")
+    RETURN_NAMES = ("masks", "visual", "propa", "folder_path")
+    FUNCTION = "compute"
+    CATEGORY = "SAM3/utils"
+
+    def compute(self, folder):
+        import folder_paths
+        folder = folder.strip().strip("/")
+        if not folder:
+            folder = "output"
+        abs_path = os.path.join(folder_paths.get_output_directory(), folder)
+        return (f"{folder}/masks", f"{folder}/visual", f"{folder}/propa", abs_path)
 
 
 # =============================================================================
@@ -679,6 +809,7 @@ NODE_CLASS_MAPPINGS = {
     "SAM3FrameCorrector": SAM3FrameCorrector,
     "SAM3SavePropagation": SAM3SavePropagation,
     "SAM3LoadPropagation": SAM3LoadPropagation,
+    "SAM3OutputFolder": SAM3OutputFolder,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -686,4 +817,5 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "SAM3FrameCorrector": "SAM3 Frame Corrector",
     "SAM3SavePropagation": "SAM3 Save Propagation",
     "SAM3LoadPropagation": "SAM3 Load Propagation",
+    "SAM3OutputFolder": "SAM3 Output Folder",
 }

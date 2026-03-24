@@ -6,6 +6,7 @@
 
 import { app } from "../../scripts/app.js";
 import { ComfyWidgets } from "../../scripts/widgets.js";
+import { openFileBrowser } from "./sam3_file_browser.js";
 
 console.log("[SAM3] ===== VERSION 8 - SERIALIZATION ENABLED =====");
 
@@ -147,70 +148,51 @@ app.registerExtension({
                     row.style.cssText = "display:flex;align-items:center;gap:4px;"
                                       + "padding:2px 6px;box-sizing:border-box;width:100%;";
 
-                    const sel = document.createElement("select");
-                    sel.style.cssText = "flex:1;background:#2a2a2a;color:#ddd;border:1px solid #555;"
-                                      + "border-radius:3px;padding:2px 4px;font-size:11px;"
-                                      + "font-family:monospace;min-width:0;";
-                    const placeholder = document.createElement("option");
-                    placeholder.value = "";
-                    placeholder.textContent = "— click 🔄 to load videos —";
-                    sel.appendChild(placeholder);
-                    row.appendChild(sel);
+                    // Label: shows currently selected filename
+                    const label = document.createElement("span");
+                    label.style.cssText = "flex:1;background:#1a1a1a;color:#666;border:1px solid #383838;"
+                                        + "border-radius:3px;padding:2px 6px;font-size:10px;"
+                                        + "font-family:monospace;overflow:hidden;text-overflow:ellipsis;"
+                                        + "white-space:nowrap;min-width:0;cursor:default;";
+                    label.textContent = "— no mask video —";
+                    row.appendChild(label);
 
-                    const refreshBtn = document.createElement("button");
-                    refreshBtn.textContent = "🔄";
-                    refreshBtn.title = "Refresh video list";
-                    refreshBtn.style.cssText = "padding:2px 6px;background:#444;color:#fff;"
-                                             + "border:1px solid #666;border-radius:3px;cursor:pointer;font-size:13px;";
-                    refreshBtn.onmouseover = () => refreshBtn.style.background = "#555";
-                    refreshBtn.onmouseout  = () => refreshBtn.style.background = "#444";
-                    row.appendChild(refreshBtn);
+                    const browseBtn = document.createElement("button");
+                    browseBtn.textContent = "📂 Browse";
+                    browseBtn.style.cssText = "padding:2px 8px;background:#484848;color:#ddd;"
+                                            + "border:1px solid #666;border-radius:3px;cursor:pointer;"
+                                            + "font-size:11px;white-space:nowrap;flex-shrink:0;";
+                    browseBtn.onmouseover = () => browseBtn.style.background = "#585858";
+                    browseBtn.onmouseout  = () => browseBtn.style.background = "#484848";
+                    row.appendChild(browseBtn);
 
-                    const loadVideos = async () => {
-                        refreshBtn.textContent = "⏳";
-                        try {
-                            const resp  = await fetch("/sam3/list_videos");
-                            const files = await resp.json();
-                            const mvpWidget = this.widgets?.find(w => w.name === "mask_video_path");
-                            const current   = mvpWidget?.value || "";
-                            sel.innerHTML   = "";
-                            const ph = document.createElement("option");
-                            ph.value = ""; ph.textContent = "— select a video —";
-                            sel.appendChild(ph);
-                            files.forEach(f => {
-                                const opt = document.createElement("option");
-                                opt.value = f.path;
-                                opt.textContent = f.label;
-                                if (f.path === current) opt.selected = true;
-                                sel.appendChild(opt);
-                            });
-                        } catch (e) {
-                            const opt = document.createElement("option");
-                            opt.value = ""; opt.textContent = "Error loading list";
-                            sel.innerHTML = ""; sel.appendChild(opt);
+                    const updateMaskLabel = () => {
+                        const pw = this.widgets?.find(w => w.name === "mask_video_path");
+                        const v = pw?.value || "";
+                        label.textContent = v ? v.split("/").pop() : "— no mask video —";
+                        label.title       = v;
+                        label.style.color = v ? "#bbb" : "#666";
+                        // Show mask toggle if a video is set
+                        if (this._maskToggleBtn) {
+                            this._maskToggleBtn.style.display = v ? "" : "none";
                         }
-                        refreshBtn.textContent = "🔄";
                     };
 
-                    refreshBtn.addEventListener("click", (e) => {
+                    browseBtn.addEventListener("click", (e) => {
                         e.preventDefault(); e.stopPropagation();
-                        loadVideos();
-                    });
-
-                    sel.addEventListener("change", () => {
-                        if (!sel.value) return;
-                        const mvpWidget = this.widgets?.find(w => w.name === "mask_video_path");
-                        if (mvpWidget) {
-                            mvpWidget.value = sel.value;
-                            const el = mvpWidget.element || mvpWidget.inputEl;
-                            if (el) el.value = sel.value;
-                        }
+                        openFileBrowser({
+                            node:           this,
+                            widgetName:     "mask_video_path",
+                            browseEndpoint: "/sam3/browse_videos",
+                            fileTypeLabel:  "Video",
+                            onPicked:       updateMaskLabel,
+                        });
                     });
 
                     const browseWidget = this.addDOMWidget("mask_browse", "maskBrowse", row);
                     browseWidget.computeSize = (width) => [width, 26];
 
-                    setTimeout(loadVideos, 300);
+                    setTimeout(updateMaskLabel, 100);
                 }
                 // ── end file selector ──────────────────────────────────
 
@@ -403,6 +385,7 @@ app.registerExtension({
                 const coordsWidget = this.widgets.find(w => w.name === "coordinates");
                 const negCoordsWidget = this.widgets.find(w => w.name === "neg_coordinates");
                 const storeWidget = this.widgets.find(w => w.name === "points_store");
+                const maskVideoWidget = this.widgets.find(w => w.name === "mask_video_path");
 
                 console.log("[SAM3] Found widgets to hide:", { coordsWidget, negCoordsWidget, storeWidget });
 
@@ -437,6 +420,8 @@ app.registerExtension({
                     hideWidgetForGood(this, storeWidget);
                     console.log("[SAM3] points_store - type:", storeWidget.type, "hidden:", storeWidget.hidden, "value:", storeWidget.value);
                 }
+                // mask_video_path is NOT hidden — it needs to be visible as an input socket
+                // so SAM3OutputFolder.folder_path can be connected to it.
 
                 // CRITICAL FIX: Override onDrawForeground to skip rendering hidden widgets
                 const originalDrawForeground = this.onDrawForeground;

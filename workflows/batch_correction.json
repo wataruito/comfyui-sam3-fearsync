@@ -1,0 +1,198 @@
+{
+  "id": "batch-correction-step4",
+  "revision": 0,
+  "last_node_id": 53,
+  "last_link_id": 107,
+  "nodes": [
+    {
+      "id": 30,
+      "type": "LoadSAM3Model",
+      "pos": [-180, 458],
+      "size": [270, 106],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {"localized_name": "precision", "name": "precision", "shape": 7, "type": "COMBO", "widget": {"name": "precision"}, "link": null},
+        {"localized_name": "attention", "name": "attention", "shape": 7, "type": "COMBO", "widget": {"name": "attention"}, "link": null},
+        {"localized_name": "compile", "name": "compile", "shape": 7, "type": "BOOLEAN", "widget": {"name": "compile"}, "link": null}
+      ],
+      "outputs": [
+        {"localized_name": "sam3_model", "name": "sam3_model", "type": "SAM3_MODEL", "links": [91]}
+      ],
+      "properties": {
+        "cnr_id": "comfyui-sam3",
+        "ver": "29ceca1e0692ea84700ccce1aeadadf2eb644322",
+        "Node name for S&R": "LoadSAM3Model"
+      },
+      "widgets_values": ["auto", "auto", false]
+    },
+    {
+      "id": 48,
+      "type": "SAM3LoadPropagation",
+      "pos": [-162, 645],
+      "size": [210, 128],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [
+        {"localized_name": "save_path", "name": "save_path", "type": "STRING", "widget": {"name": "save_path"}, "link": null}
+      ],
+      "outputs": [
+        {"localized_name": "masks", "name": "masks", "type": "SAM3_VIDEO_MASKS", "links": [87]},
+        {"localized_name": "video_state", "name": "video_state", "type": "SAM3_VIDEO_STATE", "links": [88]},
+        {"localized_name": "scores", "name": "scores", "type": "SAM3_VIDEO_SCORES", "links": null}
+      ],
+      "properties": {
+        "cnr_id": "comfyui-sam3",
+        "ver": "d5fc3167e0082dd86939799e406edb6b9db30a1c",
+        "Node name for S&R": "SAM3LoadPropagation"
+      },
+      "widgets_values": ["", ""]
+    },
+    {
+      "id": 9,
+      "type": "VHS_LoadVideo",
+      "pos": [-154, 901],
+      "size": [260, 510],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {"localized_name": "meta_batch", "name": "meta_batch", "shape": 7, "type": "VHS_BatchManager", "link": null},
+        {"localized_name": "vae", "name": "vae", "shape": 7, "type": "VAE", "link": null},
+        {"localized_name": "video", "name": "video", "type": "COMBO", "widget": {"name": "video"}, "link": null},
+        {"localized_name": "force_rate", "name": "force_rate", "type": "FLOAT", "widget": {"name": "force_rate"}, "link": null},
+        {"localized_name": "custom_width", "name": "custom_width", "type": "INT", "widget": {"name": "custom_width"}, "link": null},
+        {"localized_name": "custom_height", "name": "custom_height", "type": "INT", "widget": {"name": "custom_height"}, "link": null},
+        {"localized_name": "frame_load_cap", "name": "frame_load_cap", "type": "INT", "widget": {"name": "frame_load_cap"}, "link": null},
+        {"localized_name": "skip_first_frames", "name": "skip_first_frames", "type": "INT", "widget": {"name": "skip_first_frames"}, "link": null},
+        {"localized_name": "select_every_nth", "name": "select_every_nth", "type": "INT", "widget": {"name": "select_every_nth"}, "link": null},
+        {"localized_name": "format", "name": "format", "shape": 7, "type": "COMBO", "widget": {"name": "format"}, "link": null}
+      ],
+      "outputs": [
+        {"localized_name": "IMAGE", "name": "IMAGE", "type": "IMAGE", "links": [95, 97]},
+        {"localized_name": "frame_count", "name": "frame_count", "type": "INT", "links": null},
+        {"localized_name": "audio", "name": "audio", "type": "AUDIO", "links": null},
+        {"localized_name": "video_info", "name": "video_info", "type": "VHS_VIDEOINFO", "links": null}
+      ],
+      "properties": {
+        "cnr_id": "comfyui-videohelpersuite",
+        "ver": "1.7.7",
+        "Node name for S&R": "VHS_LoadVideo",
+        "aux_id": "Kosinkadink/ComfyUI-VideoHelperSuite"
+      },
+      "widgets_values": {
+        "video": "",
+        "force_rate": 0,
+        "custom_width": 0,
+        "custom_height": 0,
+        "frame_load_cap": 0,
+        "skip_first_frames": 0,
+        "select_every_nth": 1,
+        "format": "AnimateDiff"
+      }
+    },
+    {
+      "id": 50,
+      "type": "SAM3AnimalPointCollector",
+      "pos": [221, 998],
+      "size": [480, 580],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {"localized_name": "video_frames", "name": "video_frames", "shape": 7, "type": "IMAGE", "link": 95},
+        {"localized_name": "image", "name": "image", "shape": 7, "type": "IMAGE", "link": null},
+        {"localized_name": "mask_frames", "name": "mask_frames", "shape": 7, "type": "IMAGE", "link": null},
+        {"localized_name": "points_store", "name": "points_store", "type": "STRING", "widget": {"name": "points_store"}, "link": null},
+        {"localized_name": "coordinates", "name": "coordinates", "type": "STRING", "widget": {"name": "coordinates"}, "link": null},
+        {"localized_name": "neg_coordinates", "name": "neg_coordinates", "type": "STRING", "widget": {"name": "neg_coordinates"}, "link": null},
+        {"localized_name": "frame_idx", "name": "frame_idx", "type": "INT", "widget": {"name": "frame_idx"}, "link": null},
+        {"localized_name": "animal_id", "name": "animal_id", "type": "INT", "widget": {"name": "animal_id"}, "link": null},
+        {"localized_name": "mask_video_path", "name": "mask_video_path", "shape": 7, "type": "STRING", "widget": {"name": "mask_video_path"}, "link": null}
+      ],
+      "outputs": [
+        {"localized_name": "positive_points", "name": "positive_points", "type": "SAM3_POINTS_PROMPT", "links": null},
+        {"localized_name": "negative_points", "name": "negative_points", "type": "SAM3_POINTS_PROMPT", "links": null},
+        {"localized_name": "single_prompt", "name": "single_prompt", "type": "SAM3_SINGLE_PROMPT", "links": [96]}
+      ],
+      "properties": {
+        "cnr_id": "comfyui-sam3",
+        "Node name for S&R": "SAM3AnimalPointCollector"
+      },
+      "widgets_values": ["{\"positive\":[],\"negative\":[]}", "[]", "[]", 0, 1, "", "", "", ""]
+    },
+    {
+      "id": 44,
+      "type": "SAM3FrameCorrector",
+      "pos": [404, 460],
+      "size": [290, 154],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {"localized_name": "sam3_model", "name": "sam3_model", "type": "SAM3_MODEL", "link": 91},
+        {"localized_name": "masks", "name": "masks", "type": "SAM3_VIDEO_MASKS", "link": 87},
+        {"localized_name": "video_state", "name": "video_state", "type": "SAM3_VIDEO_STATE", "link": 88},
+        {"localized_name": "new_correction", "name": "new_correction", "shape": 7, "type": "SAM3_SINGLE_PROMPT", "link": 96},
+        {"localized_name": "video_frames", "name": "video_frames", "shape": 7, "type": "IMAGE", "link": 97},
+        {"localized_name": "correction_store", "name": "correction_store", "type": "STRING", "widget": {"name": "correction_store"}, "link": null}
+      ],
+      "outputs": [
+        {"localized_name": "corrected_masks", "name": "corrected_masks", "type": "SAM3_VIDEO_MASKS", "links": null},
+        {"localized_name": "correction_store", "name": "correction_store", "type": "STRING", "links": [107]}
+      ],
+      "properties": {
+        "cnr_id": "comfyui-sam3",
+        "ver": "d5fc3167e0082dd86939799e406edb6b9db30a1c",
+        "Node name for S&R": "SAM3FrameCorrector"
+      },
+      "widgets_values": ["[]", ""]
+    },
+    {
+      "id": 53,
+      "type": "SAM3WriteCorrectionsCSV",
+      "pos": [760, 460],
+      "size": [340, 160],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {"localized_name": "correction_store", "name": "correction_store", "type": "STRING", "link": 107},
+        {"localized_name": "video_id", "name": "video_id", "type": "STRING", "widget": {"name": "video_id"}, "link": null},
+        {"localized_name": "corrections_csv_path", "name": "corrections_csv_path", "type": "STRING", "widget": {"name": "corrections_csv_path"}, "link": null},
+        {"localized_name": "pipeline_csv_path", "name": "pipeline_csv_path", "type": "STRING", "widget": {"name": "pipeline_csv_path"}, "link": null}
+      ],
+      "outputs": [
+        {"localized_name": "corrections_csv_path", "name": "corrections_csv_path", "type": "STRING", "links": null}
+      ],
+      "properties": {
+        "cnr_id": "comfyui-sam3",
+        "Node name for S&R": "SAM3WriteCorrectionsCSV"
+      },
+      "widgets_values": [
+        "",
+        "/home/ubg/ubg-tera06/wataru/github/fear_synchrony/batch/corrections.csv",
+        "/home/ubg/ubg-tera06/wataru/github/fear_synchrony/batch/pipeline.csv"
+      ]
+    }
+  ],
+  "links": [
+    [87, 48, 0, 44, 1, "SAM3_VIDEO_MASKS"],
+    [88, 48, 1, 44, 2, "SAM3_VIDEO_STATE"],
+    [91, 30, 0, 44, 0, "SAM3_MODEL"],
+    [95, 9, 0, 50, 0, "IMAGE"],
+    [96, 50, 2, 44, 3, "SAM3_SINGLE_PROMPT"],
+    [97, 9, 0, 44, 4, "IMAGE"],
+    [107, 44, 1, 53, 0, "STRING"]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "ds": {"scale": 0.5, "offset": [200, -100]},
+    "frontendVersion": "1.32.9",
+    "workflow_description": "Step 4 batch correction: load an existing .pt file, review masks, click correction points per mouse per frame, then queue. SAM3FrameCorrector applies corrections, SAM3WriteCorrectionsCSV writes them to corrections.csv and updates pipeline.csv status to corrected."
+  },
+  "version": 0.4
+}

@@ -83,8 +83,8 @@ class SAM3TwoMouseTracking:
             },
         }
 
-    RETURN_TYPES = ("SAM3_VIDEO_STATE",)
-    RETURN_NAMES = ("video_state",)
+    RETURN_TYPES = ("SAM3_VIDEO_STATE", "STRING")
+    RETURN_NAMES = ("video_state", "prompt_store")
     FUNCTION = "segment"
     CATEGORY = "SAM3/video"
     OUTPUT_NODE = True  # Run even without downstream connections
@@ -152,7 +152,7 @@ class SAM3TwoMouseTracking:
                     "prompt_store":  [updated_store],
                     "prompt_count": [str(len(prompts))],
                 },
-                "result": (video_state,),
+                "result": (video_state, updated_store),
             }
 
         log.info(f"STATE CACHE MISS key={cache_key[:8]} — building video state")
@@ -204,7 +204,7 @@ class SAM3TwoMouseTracking:
                 "prompt_store":  [updated_store],
                 "prompt_count": [str(len(prompts))],
             },
-            "result": (video_state,),
+            "result": (video_state, updated_store),
         }
 
 
@@ -262,8 +262,8 @@ class SAM3FrameCorrector:
             },
         }
 
-    RETURN_TYPES = ("SAM3_VIDEO_MASKS",)
-    RETURN_NAMES = ("corrected_masks",)
+    RETURN_TYPES = ("SAM3_VIDEO_MASKS", "STRING")
+    RETURN_NAMES = ("corrected_masks", "correction_store")
     FUNCTION = "correct"
     CATEGORY = "SAM3/video"
     OUTPUT_NODE = True
@@ -351,7 +351,7 @@ class SAM3FrameCorrector:
                     "correction_store": [updated_store],
                     "correction_count": ["0"],
                 },
-                "result": (masks,),
+                "result": (masks, updated_store),
             }
 
         if video_frames is None:
@@ -361,7 +361,7 @@ class SAM3FrameCorrector:
                     "correction_store": [updated_store],
                     "correction_count": [str(len(corrections))],
                 },
-                "result": (masks,),
+                "result": (masks, updated_store),
             }
 
         # ── Work on a shallow copy of masks dict ──────────────────────────
@@ -478,7 +478,7 @@ class SAM3FrameCorrector:
                 "correction_store": [updated_store],
                 "correction_count": [str(len(corrections))],
             },
-            "result": (corrected,),
+            "result": (corrected, updated_store),
         }
 
 
@@ -801,7 +801,359 @@ class SAM3OutputFolder:
 
 
 # =============================================================================
+# SAM3WritePipelineCSV — write initial tracking prompts to batch pipeline CSV
+# =============================================================================
+
+class SAM3WritePipelineCSV:
+    """
+    Write initial point-prompt annotations to the batch pipeline CSV.
+
+    Step 2 annotation workflow:
+      VHS_LoadVideo → SAM3AnimalPointCollector → SAM3TwoMouseTracking → SAM3WritePipelineCSV
+
+    Reads the accumulated prompt_store from SAM3TwoMouseTracking, extracts the
+    coordinates for mouse1 (obj_id=1) and mouse2 (obj_id=2), and upserts a row
+    in pipeline.csv with status=prompted.
+    """
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "prompt_store": ("STRING", {
+                    "forceInput": True,
+                    "tooltip": "Accumulated prompts from SAM3TwoMouseTracking (prompt_store output).",
+                }),
+                "video_path": ("STRING", {
+                    "default": "",
+                    "tooltip": "Absolute path to the source video file.",
+                }),
+                "video_id": ("STRING", {
+                    "default": "",
+                    "tooltip": "Short unique identifier for this video (e.g. f402ab).",
+                }),
+                "csv_path": ("STRING", {
+                    "default": "",
+                    "tooltip": "Absolute path to pipeline.csv (created if it does not exist).",
+                }),
+            },
+        }
+
+    RETURN_TYPES = ("STRING",)
+    RETURN_NAMES = ("csv_path",)
+    FUNCTION = "write"
+    CATEGORY = "SAM3/batch"
+    OUTPUT_NODE = True
+
+    def write(self, prompt_store, video_path, video_id, csv_path):
+        import csv as csvmod
+
+        HEADERS = [
+            "video_id", "video_path", "status",
+            "prompt_frame_idx", "mouse1_x", "mouse1_y", "mouse2_x", "mouse2_y",
+            "output_pt_path", "masks_csv_path",
+        ]
+
+        try:
+            prompts = json.loads(prompt_store) if str(prompt_store).strip() else []
+            prompts = prompts if isinstance(prompts, list) else []
+        except (json.JSONDecodeError, TypeError):
+            prompts = []
+
+        m1 = next((p for p in prompts if p.get("obj_id") == 1), None)
+        m2 = next((p for p in prompts if p.get("obj_id") == 2), None)
+
+        frame_idx = m1.get("frame_idx", "") if m1 else ""
+        m1x = m1["points"][0][0] if m1 and m1.get("points") else ""
+        m1y = m1["points"][0][1] if m1 and m1.get("points") else ""
+        m2x = m2["points"][0][0] if m2 and m2.get("points") else ""
+        m2y = m2["points"][0][1] if m2 and m2.get("points") else ""
+
+        rows = []
+        if os.path.isfile(csv_path):
+            with open(csv_path, "r", newline="") as f:
+                rows = list(csvmod.DictReader(f))
+
+        new_row = {
+            "video_id": video_id,
+            "video_path": video_path,
+            "status": "prompted",
+            "prompt_frame_idx": frame_idx,
+            "mouse1_x": m1x,
+            "mouse1_y": m1y,
+            "mouse2_x": m2x,
+            "mouse2_y": m2y,
+            "output_pt_path": "",
+            "masks_csv_path": "",
+        }
+
+        replaced = False
+        for i, row in enumerate(rows):
+            if row.get("video_id") == video_id:
+                new_row["output_pt_path"] = row.get("output_pt_path", "")
+                new_row["masks_csv_path"] = row.get("masks_csv_path", "")
+                rows[i] = new_row
+                replaced = True
+                break
+        if not replaced:
+            rows.append(new_row)
+
+        csv_dir = os.path.dirname(os.path.abspath(csv_path))
+        os.makedirs(csv_dir, exist_ok=True)
+        with open(csv_path, "w", newline="") as f:
+            writer = csvmod.DictWriter(f, fieldnames=HEADERS)
+            writer.writeheader()
+            writer.writerows(rows)
+
+        log.info(f"[SAM3WritePipelineCSV] {csv_path}: video_id={video_id} status=prompted "
+                 f"frame={frame_idx} m1=({m1x},{m1y}) m2=({m2x},{m2y})")
+
+        return {
+            "ui": {"csv_path": [csv_path]},
+            "result": (csv_path,),
+        }
+
+
+# =============================================================================
+# SAM3WriteCorrectionsCSV — write correction prompts to batch corrections CSV
+# =============================================================================
+
+class SAM3WriteCorrectionsCSV:
+    """
+    Write correction-prompt annotations to the batch corrections CSV.
+
+    Step 4 correction workflow:
+      SAM3LoadPropagation → SAM3FrameCorrector → SAM3WriteCorrectionsCSV
+                                  ↑
+                        SAM3AnimalPointCollector
+
+    Reads the accumulated correction_store from SAM3FrameCorrector, expands each
+    entry to per-point rows, and writes them to corrections.csv.  Also updates
+    pipeline.csv status to "corrected" for this video.
+    """
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "correction_store": ("STRING", {
+                    "forceInput": True,
+                    "tooltip": "Accumulated corrections from SAM3FrameCorrector (correction_store output).",
+                }),
+                "video_id": ("STRING", {
+                    "default": "",
+                    "tooltip": "Short unique identifier matching a row in pipeline.csv.",
+                }),
+                "corrections_csv_path": ("STRING", {
+                    "default": "",
+                    "tooltip": "Absolute path to corrections.csv (created if it does not exist).",
+                }),
+                "pipeline_csv_path": ("STRING", {
+                    "default": "",
+                    "tooltip": "Absolute path to pipeline.csv (status updated to corrected).",
+                }),
+            },
+        }
+
+    RETURN_TYPES = ("STRING",)
+    RETURN_NAMES = ("corrections_csv_path",)
+    FUNCTION = "write"
+    CATEGORY = "SAM3/batch"
+    OUTPUT_NODE = True
+
+    def write(self, correction_store, video_id, corrections_csv_path, pipeline_csv_path):
+        import csv as csvmod
+
+        CORR_HEADERS = ["video_id", "frame_idx", "mouse_id", "point_type", "x", "y"]
+        PIPE_HEADERS = [
+            "video_id", "video_path", "gt_csv_path", "status",
+            "prompt_frame_idx", "mouse1_x", "mouse1_y", "mouse2_x", "mouse2_y",
+            "output_pt_path", "masks_csv_path",
+        ]
+
+        try:
+            corrections = json.loads(correction_store) if str(correction_store).strip() else []
+            corrections = corrections if isinstance(corrections, list) else []
+        except (json.JSONDecodeError, TypeError):
+            corrections = []
+
+        # Load existing corrections (drop old rows for this video)
+        existing = []
+        if os.path.isfile(corrections_csv_path):
+            with open(corrections_csv_path, "r", newline="") as f:
+                existing = [r for r in csvmod.DictReader(f) if r.get("video_id") != video_id]
+
+        new_rows = []
+        for entry in corrections:
+            frame_idx = entry.get("frame_idx", "")
+            obj_id    = entry.get("obj_id", 1)
+            points    = entry.get("points", [])
+            labels    = entry.get("labels", [])
+            for pt, label in zip(points, labels):
+                new_rows.append({
+                    "video_id":   video_id,
+                    "frame_idx":  frame_idx,
+                    "mouse_id":   obj_id,
+                    "point_type": "pos" if label == 1 else "neg",
+                    "x":          pt[0],
+                    "y":          pt[1],
+                })
+
+        corr_dir = os.path.dirname(os.path.abspath(corrections_csv_path))
+        os.makedirs(corr_dir, exist_ok=True)
+        with open(corrections_csv_path, "w", newline="") as f:
+            writer = csvmod.DictWriter(f, fieldnames=CORR_HEADERS)
+            writer.writeheader()
+            writer.writerows(existing + new_rows)
+
+        # Update pipeline CSV status → corrected
+        if pipeline_csv_path and os.path.isfile(pipeline_csv_path) and new_rows:
+            pipe_rows = []
+            with open(pipeline_csv_path, "r", newline="") as f:
+                pipe_rows = list(csvmod.DictReader(f))
+            for row in pipe_rows:
+                if row.get("video_id") == video_id:
+                    row["status"] = "corrected"
+            if pipe_rows:
+                headers = list(pipe_rows[0].keys())
+                with open(pipeline_csv_path, "w", newline="") as f:
+                    writer = csvmod.DictWriter(f, fieldnames=headers)
+                    writer.writeheader()
+                    writer.writerows(pipe_rows)
+
+        log.info(f"[SAM3WriteCorrectionsCSV] {corrections_csv_path}: "
+                 f"video_id={video_id} {len(new_rows)} correction points written")
+
+        return {
+            "ui": {"corrections_csv_path": [corrections_csv_path]},
+            "result": (corrections_csv_path,),
+        }
+
+
+# =============================================================================
+# SAM3WorkingDirSelector — batch pipeline working directory + video selector
+# =============================================================================
+
+class SAM3WorkingDirSelector:
+    """
+    Working-directory selector for the batch pipeline.
+
+    Expected directory layout:
+      working_dir/
+      ├── video/
+      │   └── {folder}/
+      │       └── *.mp4
+      ├── pipeline.csv
+      └── corrections.csv
+
+    video_id is constructed as "{folder}_{stem}" (no extension).
+
+    Outputs feed into:
+      video_path  → VHS_LoadVideo (convert 'video' widget to input first)
+      video_id    → SAM3WritePipelineCSV / SAM3WriteCorrectionsCSV
+      csv_path    → SAM3WritePipelineCSV (pipeline.csv)
+      corrections_csv_path → SAM3WriteCorrectionsCSV
+    """
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "working_dir": ("STRING", {
+                    "default": "",
+                    "tooltip": "Root working directory containing video/, pipeline.csv, etc.",
+                }),
+                "selected_folder": ("STRING", {
+                    "default": "",
+                    "tooltip": "Subfolder under working_dir/video/ — set by the widget dropdown.",
+                }),
+                "selected_video": ("STRING", {
+                    "default": "",
+                    "tooltip": "Video filename — set by the widget dropdown.",
+                }),
+            },
+        }
+
+    RETURN_TYPES = ("STRING", "STRING", "STRING", "STRING", "STRING")
+    RETURN_NAMES = ("video_path", "video_id", "csv_path", "corrections_csv_path", "working_dir")
+    FUNCTION = "select"
+    CATEGORY = "SAM3/batch"
+
+    def select(self, working_dir, selected_folder, selected_video):
+        import pathlib
+        wd = pathlib.Path(working_dir.strip())
+        if selected_folder and selected_video:
+            video_path = str(wd / "video" / selected_folder / selected_video)
+            stem = pathlib.Path(selected_video).stem
+            video_id = f"{selected_folder}_{stem}"
+        else:
+            video_path = ""
+            video_id = ""
+        csv_path = str(wd / "pipeline.csv")
+        corrections_csv_path = str(wd / "corrections.csv")
+        return (video_path, video_id, csv_path, corrections_csv_path, str(wd))
+
+
+if _SERVER_AVAILABLE:
+    @server.PromptServer.instance.routes.get("/sam3/wd/list_folders")
+    async def _wd_list_folders(request):
+        working_dir = request.query.get("working_dir", "").strip()
+        video_dir = os.path.join(working_dir, "video")
+        folders = []
+        if os.path.isdir(video_dir):
+            folders = sorted(
+                d for d in os.listdir(video_dir)
+                if os.path.isdir(os.path.join(video_dir, d))
+            )
+        return web.json_response({"folders": folders})
+
+    @server.PromptServer.instance.routes.get("/sam3/wd/list_videos")
+    async def _wd_list_videos(request):
+        working_dir = request.query.get("working_dir", "").strip()
+        folder = request.query.get("folder", "").strip()
+        folder_dir = os.path.join(working_dir, "video", folder)
+        videos = []
+        if os.path.isdir(folder_dir):
+            videos = sorted(
+                f for f in os.listdir(folder_dir)
+                if f.lower().endswith(".mp4")
+            )
+        return web.json_response({"videos": videos})
+
+
+# =============================================================================
 # Node Mappings
+# =============================================================================
+
+# ---------------------------------------------------------------------------
+# Patch VHS_LoadVideo.VALIDATE_INPUTS to handle None (linked input).
+# When video is a linked output from another node, ComfyUI passes None during
+# validation. The stock implementation calls None.endswith() and crashes.
+# ---------------------------------------------------------------------------
+def _patch_vhs_load_video():
+    try:
+        import folder_paths
+        from nodes import NODE_CLASS_MAPPINGS as _NCM
+        cls = _NCM.get("VHS_LoadVideo")
+        if cls is None:
+            return
+        orig = cls.__dict__.get("VALIDATE_INPUTS")
+        if orig is None:
+            return
+
+        @classmethod  # type: ignore[misc]
+        def _safe_validate(klass, video, **kwargs):
+            if video is None:
+                return True  # linked input — skip validation
+            return orig.__func__(klass, video, **kwargs)
+
+        cls.VALIDATE_INPUTS = _safe_validate
+        log.info("[sam3] Patched VHS_LoadVideo.VALIDATE_INPUTS to handle linked (None) input")
+    except Exception as e:
+        log.warning(f"[sam3] Could not patch VHS_LoadVideo: {e}")
+
+_patch_vhs_load_video()
+
 # =============================================================================
 
 NODE_CLASS_MAPPINGS = {
@@ -810,6 +1162,9 @@ NODE_CLASS_MAPPINGS = {
     "SAM3SavePropagation": SAM3SavePropagation,
     "SAM3LoadPropagation": SAM3LoadPropagation,
     "SAM3OutputFolder": SAM3OutputFolder,
+    "SAM3WritePipelineCSV": SAM3WritePipelineCSV,
+    "SAM3WriteCorrectionsCSV": SAM3WriteCorrectionsCSV,
+    "SAM3WorkingDirSelector": SAM3WorkingDirSelector,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -818,4 +1173,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "SAM3SavePropagation": "SAM3 Save Propagation",
     "SAM3LoadPropagation": "SAM3 Load Propagation",
     "SAM3OutputFolder": "SAM3 Output Folder",
+    "SAM3WritePipelineCSV": "SAM3 Write Pipeline CSV",
+    "SAM3WriteCorrectionsCSV": "SAM3 Write Corrections CSV",
+    "SAM3WorkingDirSelector": "SAM3 Working Dir Selector",
 }

@@ -1,0 +1,68 @@
+{
+  "1": {
+    "class_type": "LoadSAM3Model",
+    "inputs": {
+      "precision": "auto",
+      "attention": "auto",
+      "compile": false
+    }
+  },
+  "2": {
+    "class_type": "VHS_LoadVideo",
+    "inputs": {
+      "video": "/path/to/video.mp4",
+      "force_rate": 0,
+      "custom_width": 0,
+      "custom_height": 0,
+      "frame_load_cap": 0,
+      "skip_first_frames": 0,
+      "select_every_nth": 1,
+      "format": "AnimateDiff"
+    }
+  },
+  "3": {
+    "class_type": "SAM3TwoMouseTracking",
+    "inputs": {
+      "video_frames": [
+        "2",
+        0
+      ],
+      "prompt_store": "[{\"frame_idx\": 0, \"obj_id\": 1, \"points\": [[100.0, 80.0]], \"labels\": [1], \"img_width\": 304, \"img_height\": 236}, {\"frame_idx\": 0, \"obj_id\": 2, \"points\": [[200.0, 150.0]], \"labels\": [1], \"img_width\": 304, \"img_height\": 236}]",
+      "score_threshold": 0.3
+    }
+  },
+  "4": {
+    "class_type": "SAM3Propagate",
+    "inputs": {
+      "sam3_model": [
+        "1",
+        0
+      ],
+      "video_state": [
+        "3",
+        0
+      ],
+      "start_frame": 0,
+      "end_frame": -1,
+      "direction": "both"
+    }
+  },
+  "5": {
+    "class_type": "SAM3SavePropagation",
+    "inputs": {
+      "masks": [
+        "4",
+        0
+      ],
+      "scores": [
+        "4",
+        1
+      ],
+      "video_state": [
+        "4",
+        2
+      ],
+      "filename_prefix": "video/example/sam3_propa"
+    }
+  }
+}

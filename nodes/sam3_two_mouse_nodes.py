@@ -98,9 +98,6 @@ class SAM3TwoMouseTracking:
     def segment(self, prompt_store, score_threshold,
                 video_frames=None, video=None, new_prompt=None):
 
-        if video is None and video_frames is None:
-            raise ValueError("Either video or video_frames must be provided.")
-
         # ── Load accumulated prompts ──────────────────────────────────────
         try:
             parsed = json.loads(prompt_store) if str(prompt_store).strip() else []
@@ -119,6 +116,17 @@ class SAM3TwoMouseTracking:
 
         updated_store = json.dumps(prompts)
         log.info(f"Total accumulated prompts: {len(prompts)}")
+
+        # ── Annotation-only mode (no video): just return accumulated prompts ─
+        if video is None and video_frames is None:
+            log.info("No video/video_frames — annotation-only mode, skipping video_state creation.")
+            return {
+                "ui": {
+                    "prompt_store": [updated_store],
+                    "prompt_count": [str(len(prompts))],
+                },
+                "result": (None, updated_store),
+            }
 
         # ── Video hash for state cache ────────────────────────────────────
         vh = hashlib.md5()
@@ -1036,20 +1044,14 @@ class SAM3WriteCorrectionsCSV:
 
 class SAM3WorkingDirSelector:
     """
-    Working-directory selector for the batch pipeline.
+    Pipeline CSV-based video selector for the batch pipeline.
 
-    Expected directory layout:
-      working_dir/
-      ├── video/
-      │   └── {folder}/
-      │       └── *.mp4
-      ├── pipeline.csv
-      └── corrections.csv
-
-    video_id is constructed as "{folder}_{stem}" (no extension).
+    Reads pipeline.csv from working_dir and presents video_id values for
+    selection. The annotator sees only video_ids (not raw file paths).
+    video_path is resolved by looking up the selected video_id in pipeline.csv.
 
     Outputs feed into:
-      video_path  → VHS_LoadVideo (convert 'video' widget to input first)
+      video_path  → VHS_LoadVideoPath
       video_id    → SAM3WritePipelineCSV / SAM3WriteCorrectionsCSV
       csv_path    → SAM3WritePipelineCSV (pipeline.csv)
       corrections_csv_path → SAM3WriteCorrectionsCSV
@@ -1061,15 +1063,11 @@ class SAM3WorkingDirSelector:
             "required": {
                 "working_dir": ("STRING", {
                     "default": "",
-                    "tooltip": "Root working directory containing video/, pipeline.csv, etc.",
+                    "tooltip": "Root working directory containing pipeline.csv",
                 }),
-                "selected_folder": ("STRING", {
+                "selected_video_id": ("STRING", {
                     "default": "",
-                    "tooltip": "Subfolder under working_dir/video/ — set by the widget dropdown.",
-                }),
-                "selected_video": ("STRING", {
-                    "default": "",
-                    "tooltip": "Video filename — set by the widget dropdown.",
+                    "tooltip": "video_id selected from pipeline.csv — set by the widget dropdown.",
                 }),
             },
         }
@@ -1079,45 +1077,35 @@ class SAM3WorkingDirSelector:
     FUNCTION = "select"
     CATEGORY = "SAM3/batch"
 
-    def select(self, working_dir, selected_folder, selected_video):
-        import pathlib
+    def select(self, working_dir, selected_video_id):
+        import pathlib, csv as _csv
         wd = pathlib.Path(working_dir.strip())
-        if selected_folder and selected_video:
-            video_path = str(wd / "video" / selected_folder / selected_video)
-            stem = pathlib.Path(selected_video).stem
-            video_id = f"{selected_folder}_{stem}"
-        else:
-            video_path = ""
-            video_id = ""
         csv_path = str(wd / "pipeline.csv")
         corrections_csv_path = str(wd / "corrections.csv")
-        return (video_path, video_id, csv_path, corrections_csv_path, str(wd))
+        video_path = ""
+        if selected_video_id and (wd / "pipeline.csv").exists():
+            with open(csv_path, newline="") as f:
+                for row in _csv.DictReader(f):
+                    if row.get("video_id") == selected_video_id:
+                        video_path = row.get("video_path", "")
+                        break
+        return (video_path, selected_video_id, csv_path, corrections_csv_path, str(wd))
 
 
 if _SERVER_AVAILABLE:
-    @server.PromptServer.instance.routes.get("/sam3/wd/list_folders")
-    async def _wd_list_folders(request):
+    @server.PromptServer.instance.routes.get("/sam3/wd/list_pipeline_videos")
+    async def _wd_list_pipeline_videos(request):
+        import csv as _csv
         working_dir = request.query.get("working_dir", "").strip()
-        video_dir = os.path.join(working_dir, "video")
-        folders = []
-        if os.path.isdir(video_dir):
-            folders = sorted(
-                d for d in os.listdir(video_dir)
-                if os.path.isdir(os.path.join(video_dir, d))
-            )
-        return web.json_response({"folders": folders})
-
-    @server.PromptServer.instance.routes.get("/sam3/wd/list_videos")
-    async def _wd_list_videos(request):
-        working_dir = request.query.get("working_dir", "").strip()
-        folder = request.query.get("folder", "").strip()
-        folder_dir = os.path.join(working_dir, "video", folder)
+        csv_path = os.path.join(working_dir, "pipeline.csv")
         videos = []
-        if os.path.isdir(folder_dir):
-            videos = sorted(
-                f for f in os.listdir(folder_dir)
-                if f.lower().endswith(".mp4")
-            )
+        if os.path.isfile(csv_path):
+            with open(csv_path, newline="") as f:
+                for row in _csv.DictReader(f):
+                    videos.append({
+                        "video_id": row.get("video_id", ""),
+                        "status":   row.get("status", ""),
+                    })
         return web.json_response({"videos": videos})
 
 
@@ -1156,6 +1144,108 @@ _patch_vhs_load_video()
 
 # =============================================================================
 
+# =============================================================================
+# SAM3FrameLoader — load a single frame from a video file using cv2
+# =============================================================================
+
+class SAM3FrameLoader:
+    """
+    Load a single frame directly from a video file using cv2.
+    Much faster than VHS_LoadVideo for annotation workflows where only
+    one specific frame is needed.
+
+    Usage in batch_annotation workflow:
+      SAM3FrameLoader → SAM3AnimalPointCollector
+    """
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "video_path": ("STRING", {
+                    "default": "",
+                    "tooltip": "Absolute path to the video file.",
+                }),
+                "frame_idx": ("INT", {
+                    "default": 0,
+                    "min": 0,
+                    "max": 99999,
+                    "step": 1,
+                    "tooltip": "Frame index to load (0-based).",
+                }),
+            },
+        }
+
+    RETURN_TYPES = ("IMAGE",)
+    RETURN_NAMES = ("image",)
+    FUNCTION = "load_frame"
+    CATEGORY = "SAM3/batch"
+
+    def load_frame(self, video_path: str, frame_idx: int):
+        import cv2
+
+        cap = cv2.VideoCapture(video_path)
+        if not cap.isOpened():
+            raise RuntimeError(f"[SAM3FrameLoader] Cannot open video: {video_path}")
+        try:
+            cap.set(cv2.CAP_PROP_POS_FRAMES, frame_idx)
+            ret, frame = cap.read()
+        finally:
+            cap.release()
+
+        if not ret:
+            raise RuntimeError(
+                f"[SAM3FrameLoader] Failed to read frame {frame_idx} from {video_path}"
+            )
+
+        # cv2 returns BGR uint8 — convert to RGB float32 [0,1], shape (1, H, W, C)
+        frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        tensor = torch.from_numpy(frame_rgb).float() / 255.0
+        return (tensor.unsqueeze(0),)
+
+
+# =============================================================================
+# SAM3BuildPromptStore — combine two single prompts into a prompt_store JSON
+# =============================================================================
+
+class SAM3BuildPromptStore:
+    """
+    Combine mouse1 and mouse2 single prompts into a prompt_store JSON string
+    for SAM3WritePipelineCSV.  No accumulation — builds a fresh store every run.
+
+    Usage in batch_annotation workflow:
+      Collector1 (animal_id=1) ─┐
+                                 ├→ SAM3BuildPromptStore → prompt_store → SAM3WritePipelineCSV
+      Collector2 (animal_id=2) ─┘
+    """
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "mouse1_prompt": ("SAM3_SINGLE_PROMPT", {
+                    "tooltip": "Single prompt from SAM3AnimalPointCollector (animal_id=1).",
+                }),
+                "mouse2_prompt": ("SAM3_SINGLE_PROMPT", {
+                    "tooltip": "Single prompt from SAM3AnimalPointCollector (animal_id=2).",
+                }),
+            },
+        }
+
+    RETURN_TYPES = ("STRING",)
+    RETURN_NAMES = ("prompt_store",)
+    FUNCTION = "build"
+    CATEGORY = "SAM3/batch"
+
+    def build(self, mouse1_prompt, mouse2_prompt):
+        prompts = []
+        if mouse1_prompt and mouse1_prompt.get("points"):
+            prompts.append(mouse1_prompt)
+        if mouse2_prompt and mouse2_prompt.get("points"):
+            prompts.append(mouse2_prompt)
+        return (json.dumps(prompts),)
+
+
 NODE_CLASS_MAPPINGS = {
     "SAM3TwoMouseTracking": SAM3TwoMouseTracking,
     "SAM3FrameCorrector": SAM3FrameCorrector,
@@ -1165,6 +1255,8 @@ NODE_CLASS_MAPPINGS = {
     "SAM3WritePipelineCSV": SAM3WritePipelineCSV,
     "SAM3WriteCorrectionsCSV": SAM3WriteCorrectionsCSV,
     "SAM3WorkingDirSelector": SAM3WorkingDirSelector,
+    "SAM3FrameLoader": SAM3FrameLoader,
+    "SAM3BuildPromptStore": SAM3BuildPromptStore,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -1176,4 +1268,6 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "SAM3WritePipelineCSV": "SAM3 Write Pipeline CSV",
     "SAM3WriteCorrectionsCSV": "SAM3 Write Corrections CSV",
     "SAM3WorkingDirSelector": "SAM3 Working Dir Selector",
+    "SAM3FrameLoader": "SAM3 Frame Loader",
+    "SAM3BuildPromptStore": "SAM3 Build Prompt Store",
 }

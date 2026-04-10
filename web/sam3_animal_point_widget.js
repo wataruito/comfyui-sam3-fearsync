@@ -265,6 +265,7 @@ app.registerExtension({
                 // Video state
                 this.videoState = {
                     nodeId:      null,
+                    videoPath:   null,
                     totalFrames: 1,
                     fps:         4,
                     isPlaying:   false,
@@ -277,7 +278,7 @@ app.registerExtension({
                     return `${m}:${s.toString().padStart(2, "0")}`;
                 };
 
-                const updateFrameDisplay = (idx) => {
+                const updateFrameDisplay = (idx, _fromSync = false) => {
                     slider.value = idx;
                     frameLabel.textContent = `Frame: ${idx}`;
                     const fps   = this.videoState.fps;
@@ -286,16 +287,38 @@ app.registerExtension({
                     // Sync frame_idx widget
                     const fw = this.widgets?.find(w => w.name === "frame_idx");
                     if (fw) fw.value = idx;
+                    // Sync sibling collectors sharing the same video_path
+                    if (!_fromSync && this.videoState.videoPath) {
+                        for (const node of (app.graph?._nodes ?? [])) {
+                            if (node === this) continue;
+                            if (node.type !== "SAM3AnimalPointCollector") continue;
+                            if (node.videoState?.videoPath !== this.videoState.videoPath) continue;
+                            if (node._videoControls) {
+                                node._videoControls.updateFrameDisplay(idx, true);
+                                node._videoControls.fetchFrame(idx);
+                            }
+                        }
+                    }
                 };
 
                 const fetchFrame = async (idx) => {
-                    if (!this.videoState.nodeId) return;
-                    try {
-                        const resp = await fetch("/sam3/get_frame", {
+                    let fetchPromise;
+                    if (this.videoState.videoPath) {
+                        // cv2-based direct fetch — no prior Queue needed
+                        const url = `/sam3/get_video_frame?video_path=${encodeURIComponent(this.videoState.videoPath)}&frame_idx=${idx}`;
+                        fetchPromise = fetch(url);
+                    } else if (this.videoState.nodeId) {
+                        // Fall back to node_id-based fetch (video_frames in memory)
+                        fetchPromise = fetch("/sam3/get_frame", {
                             method: "POST",
                             headers: {"Content-Type": "application/json"},
                             body: JSON.stringify({node_id: this.videoState.nodeId, frame_idx: idx}),
                         });
+                    } else {
+                        return;
+                    }
+                    try {
+                        const resp = await fetchPromise;
                         if (!resp.ok) return;
                         const blob = await resp.blob();
                         const url  = URL.createObjectURL(blob);
@@ -374,6 +397,7 @@ app.registerExtension({
                     console.log("[SAM3] Clearing all points");
                     this.canvasWidget.positivePoints = [];
                     this.canvasWidget.negativePoints = [];
+                    this.canvasWidget.animal2Points  = [];
                     this.updatePoints();
                     this.redrawCanvas();
                 });
@@ -382,9 +406,10 @@ app.registerExtension({
                 console.log("[SAM3] Attempting to hide widgets...");
                 console.log("[SAM3] Widgets before hiding:", this.widgets.map(w => w.name));
 
-                const coordsWidget = this.widgets.find(w => w.name === "coordinates");
+                const coordsWidget    = this.widgets.find(w => w.name === "coordinates");
                 const negCoordsWidget = this.widgets.find(w => w.name === "neg_coordinates");
-                const storeWidget = this.widgets.find(w => w.name === "points_store");
+                const coords2Widget   = this.widgets.find(w => w.name === "coordinates2");
+                const storeWidget     = this.widgets.find(w => w.name === "points_store");
                 const maskVideoWidget = this.widgets.find(w => w.name === "mask_video_path");
 
                 console.log("[SAM3] Found widgets to hide:", { coordsWidget, negCoordsWidget, storeWidget });
@@ -402,9 +427,10 @@ app.registerExtension({
 
                 // Store references before hiding
                 this._hiddenWidgets = {
-                    coordinates: coordsWidget,
+                    coordinates:     coordsWidget,
                     neg_coordinates: negCoordsWidget,
-                    points_store: storeWidget
+                    coordinates2:    coords2Widget,
+                    points_store:    storeWidget
                 };
 
                 // Apply hiding
@@ -419,6 +445,9 @@ app.registerExtension({
                 if (storeWidget) {
                     hideWidgetForGood(this, storeWidget);
                     console.log("[SAM3] points_store - type:", storeWidget.type, "hidden:", storeWidget.hidden, "value:", storeWidget.value);
+                }
+                if (coords2Widget) {
+                    hideWidgetForGood(this, coords2Widget);
                 }
                 // mask_video_path is NOT hidden — it needs to be visible as an input socket
                 // so SAM3OutputFolder.folder_path can be connected to it.
@@ -454,24 +483,23 @@ app.registerExtension({
                     const y = ((e.clientY - rect.top) / rect.height) * canvas.height;
                     console.log(`[SAM3] Click at canvas coords: (${x.toFixed(1)}, ${y.toFixed(1)}), canvas size: ${canvas.width}x${canvas.height}`);
 
-                    // Check if clicking existing point to delete
-                    const clickedPoint = this.findPointAt(x, y);
-                    if (clickedPoint && e.button === 2) {
-                        // Right-click on existing point = delete
-                        if (clickedPoint.type === 'positive') {
-                            this.canvasWidget.positivePoints = this.canvasWidget.positivePoints.filter(p => p !== clickedPoint.point);
+                    if (e.button === 2) {
+                        // Right-click: animal 2 point (orange)
+                        // Check if clicking existing animal2 point to delete
+                        const a2 = this.canvasWidget.animal2Points || [];
+                        const hit = a2.findIndex(p => Math.hypot(p.x - x, p.y - y) < 10);
+                        if (hit >= 0) {
+                            a2.splice(hit, 1);
                         } else {
-                            this.canvasWidget.negativePoints = this.canvasWidget.negativePoints.filter(p => p !== clickedPoint.point);
+                            a2.push({x, y});
                         }
+                        this.canvasWidget.animal2Points = a2;
+                    } else if (e.shiftKey) {
+                        // Shift+left: negative point
+                        this.canvasWidget.negativePoints.push({x, y});
                     } else {
-                        // Add new point
-                        if (e.shiftKey || e.button === 2) {
-                            // Negative point
-                            this.canvasWidget.negativePoints.push({x, y});
-                        } else {
-                            // Positive point
-                            this.canvasWidget.positivePoints.push({x, y});
-                        }
+                        // Left click: animal 1 positive point
+                        this.canvasWidget.positivePoints.push({x, y});
                     }
 
                     this.updatePoints();
@@ -508,6 +536,7 @@ app.registerExtension({
                     // Update video state from server
                     if (message.node_id?.[0])      this.videoState.nodeId      = message.node_id[0];
                     if (message.fps?.[0])           this.videoState.fps         = parseFloat(message.fps[0]);
+                    if (message.video_path?.[0])    this.videoState.videoPath   = message.video_path[0] || null;
                     if (message.total_frames?.[0]) {
                         this.videoState.totalFrames = parseInt(message.total_frames[0]);
                         this._videoControls.slider.max = this.videoState.totalFrames - 1;
@@ -542,6 +571,13 @@ app.registerExtension({
                         };
                         img.src = "data:image/jpeg;base64," + message.bg_image[0];
                     }
+
+                    // Clear all annotation dots after successful execution
+                    this.canvasWidget.positivePoints = [];
+                    this.canvasWidget.negativePoints = [];
+                    this.canvasWidget.animal2Points  = [];
+                    this.updatePoints();
+                    this.redrawCanvas();
                 };
 
 
@@ -591,15 +627,19 @@ app.registerExtension({
             // Helper: Update widget values
             nodeType.prototype.updatePoints = function() {
                 // Use stored hidden widget references
-                const coordsWidget = this._hiddenWidgets?.coordinates || this.widgets.find(w => w.name === "coordinates");
+                const coordsWidget    = this._hiddenWidgets?.coordinates    || this.widgets.find(w => w.name === "coordinates");
                 const negCoordsWidget = this._hiddenWidgets?.neg_coordinates || this.widgets.find(w => w.name === "neg_coordinates");
-                const storeWidget = this._hiddenWidgets?.points_store || this.widgets.find(w => w.name === "points_store");
+                const coords2Widget   = this._hiddenWidgets?.coordinates2   || this.widgets.find(w => w.name === "coordinates2");
+                const storeWidget     = this._hiddenWidgets?.points_store   || this.widgets.find(w => w.name === "points_store");
 
                 if (coordsWidget) {
                     coordsWidget.value = JSON.stringify(this.canvasWidget.positivePoints);
                 }
                 if (negCoordsWidget) {
                     negCoordsWidget.value = JSON.stringify(this.canvasWidget.negativePoints);
+                }
+                if (coords2Widget) {
+                    coords2Widget.value = JSON.stringify(this.canvasWidget.animal2Points || []);
                 }
                 if (storeWidget) {
                     storeWidget.value = JSON.stringify({
@@ -609,14 +649,17 @@ app.registerExtension({
                 }
 
                 // Update points counter display
-                const posCount = this.canvasWidget.positivePoints.length;
-                const negCount = this.canvasWidget.negativePoints.length;
-                this.canvasWidget.pointsCounter.textContent = `Points: ${posCount} pos, ${negCount} neg`;
+                const posCount  = this.canvasWidget.positivePoints.length;
+                const negCount  = this.canvasWidget.negativePoints.length;
+                const a2Count   = (this.canvasWidget.animal2Points || []).length;
+                this.canvasWidget.pointsCounter.textContent =
+                    `M1: ${posCount} pt  M2: ${a2Count} pt  Neg: ${negCount} pt`;
             };
 
             // Helper: Redraw canvas
             nodeType.prototype.redrawCanvas = function() {
                 const {canvas, ctx, image, maskImage, showMask, positivePoints, negativePoints, hoveredPoint} = this.canvasWidget;
+                const animal2Points = this.canvasWidget.animal2Points || [];
 
                 // Clear
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -637,8 +680,9 @@ app.registerExtension({
                     ctx.font = "16px sans-serif";
                     ctx.textAlign = "center";
                     ctx.fillText("Click to add points", canvas.width / 2, canvas.height / 2);
-                    ctx.fillText("Left-click: Positive (green)", canvas.width / 2, canvas.height / 2 + 25);
-                    ctx.fillText("Shift/Right-click: Negative (red)", canvas.width / 2, canvas.height / 2 + 50);
+                    ctx.fillText("Left-click: Mouse 1 (green)", canvas.width / 2, canvas.height / 2 + 25);
+                    ctx.fillText("Right-click: Mouse 2 (orange)", canvas.width / 2, canvas.height / 2 + 50);
+                    ctx.fillText("Shift+click: Negative (red)", canvas.width / 2, canvas.height / 2 + 75);
                 }
 
                 // Draw canvas dimensions overlay (helpful for debugging)
@@ -658,6 +702,17 @@ app.registerExtension({
                     const isHovered = hoveredPoint?.point === point;
                     ctx.beginPath();
                     ctx.arc(point.x, point.y, isHovered ? 8 : 6, 0, 2 * Math.PI);
+                    ctx.fill();
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                }
+
+                // Draw animal 2 points (orange)
+                ctx.strokeStyle = "#f80";
+                ctx.fillStyle = "#f80";
+                for (const point of animal2Points) {
+                    ctx.beginPath();
+                    ctx.arc(point.x, point.y, 6, 0, 2 * Math.PI);
                     ctx.fill();
                     ctx.lineWidth = 2;
                     ctx.stroke();

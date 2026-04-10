@@ -15,6 +15,7 @@ Prerequisites:
 import argparse
 import csv
 import json
+import random
 import subprocess
 import sys
 import time
@@ -30,7 +31,6 @@ import requests
 REPO_ROOT = Path(__file__).resolve().parent.parent
 BATCH_DIR  = REPO_ROOT / "batch"
 DEFAULT_CSV = BATCH_DIR / "pipeline.csv"
-ANALYSIS_DIR = REPO_ROOT / "analysis_output"
 EXTRACT_SCRIPT = REPO_ROOT / "extract_masks_from_propagation.py"
 PYTHON = sys.executable   # same env that runs this script
 
@@ -68,16 +68,19 @@ def save_pipeline(csv_path: Path, rows: list[dict]):
 # ---------------------------------------------------------------------------
 
 def build_tracking_workflow(video_path: str, prompt_store_json: str,
-                             video_id: str) -> dict:
+                             video_id: str, output_dir: Path,
+                             force: bool = False) -> dict:
     """
     Minimal node graph:
       1: LoadSAM3Model
-      2: VHS_LoadVideo  (absolute path)
+      2: VHS_LoadVideoPath  (absolute path)
       3: SAM3TwoMouseTracking  (video_frames from node 2, prompt_store injected)
       4: SAM3Propagate  (sam3_model from 1, video_state from 3)
       5: SAM3SavePropagation  (masks/scores/video_state from 4)
+    Passing an absolute path as filename_prefix causes os.path.join to ignore
+    ComfyUI's output_dir, so the .pt file lands in output_dir directly.
     """
-    prefix = f"video/{video_id}/sam3_propa"
+    prefix = str(output_dir / f"{video_id}_sam3_propa")
     return {
         "1": {
             "class_type": "LoadSAM3Model",
@@ -88,7 +91,7 @@ def build_tracking_workflow(video_path: str, prompt_store_json: str,
             },
         },
         "2": {
-            "class_type": "VHS_LoadVideo",
+            "class_type": "VHS_LoadVideoPath",
             "inputs": {
                 "video": video_path,
                 "force_rate": 0,
@@ -105,7 +108,9 @@ def build_tracking_workflow(video_path: str, prompt_store_json: str,
             "inputs": {
                 "video_frames": ["2", 0],
                 "prompt_store": prompt_store_json,
-                "score_threshold": 0.3,
+                # Tiny random perturbation when force=True busts ComfyUI's node cache
+                # without affecting tracking results (threshold stays effectively 0.3).
+                "score_threshold": 0.3 + (random.random() * 1e-9 if force else 0),
             },
         },
         "4": {
@@ -216,6 +221,12 @@ def main():
                         help="Path to pipeline.csv")
     parser.add_argument("--comfyui",  default="http://localhost:8188",
                         help="ComfyUI base URL")
+    parser.add_argument("--video-id", default=None,
+                        help="Re-run tracking for a specific video_id regardless of status")
+    parser.add_argument("--force", action="store_true",
+                        help="Force re-execution by busting ComfyUI node cache (auto-enabled with --video-id)")
+    parser.add_argument("--output-dir", default=None,
+                        help="Directory for .pt and masks CSV output (default: <csv_dir>/output)")
     parser.add_argument("--dry-run",  action="store_true",
                         help="Print jobs without submitting")
     parser.add_argument("--save-workflow", action="store_true",
@@ -226,15 +237,24 @@ def main():
         save_workflow_template()
         return
 
-    csv_path = Path(args.csv)
+    csv_path = Path(args.csv).resolve()
+    output_dir = Path(args.output_dir).resolve() if args.output_dir else csv_path.parent / "output"
+
     rows = load_pipeline(csv_path)
 
-    pending = [r for r in rows if r.get("status") == "prompted"]
-    if not pending:
-        print("No rows with status=prompted in pipeline.csv. Nothing to do.")
-        return
+    if args.video_id:
+        pending = [r for r in rows if r.get("video_id") == args.video_id]
+        if not pending:
+            print(f"video_id '{args.video_id}' not found in pipeline.csv.")
+            return
+    else:
+        pending = [r for r in rows if r.get("status") == "prompted"]
+        if not pending:
+            print("No rows with status=prompted in pipeline.csv. Nothing to do.")
+            return
 
     print(f"Found {len(pending)} video(s) to track.")
+    print(f"Output directory: {output_dir}")
 
     for row in pending:
         vid_id    = row["video_id"]
@@ -270,7 +290,8 @@ def main():
             print(f"  SKIP: invalid prompt data — {e}")
             continue
 
-        workflow = build_tracking_workflow(vid_path, prompt_store, vid_id)
+        force = args.force or bool(args.video_id)
+        workflow = build_tracking_workflow(vid_path, prompt_store, vid_id, output_dir, force=force)
 
         if args.dry_run:
             print(f"  [dry-run] Would submit workflow for {vid_id}")
@@ -297,11 +318,17 @@ def main():
         if not pt_path:
             print(f"  WARNING: could not find save_path in outputs: {outputs}")
             continue
+
+        # Rename to clean filename: {video_id}_sam3_segmentation.pt
+        output_dir.mkdir(parents=True, exist_ok=True)
+        final_pt = output_dir / f"{vid_id}_sam3_segmentation.pt"
+        Path(pt_path).rename(final_pt)
+        pt_path = str(final_pt)
         print(f"  .pt saved → {pt_path}")
 
         # Extract masks CSV
-        ANALYSIS_DIR.mkdir(parents=True, exist_ok=True)
-        masks_csv = ANALYSIS_DIR / f"{vid_id}_masks.csv"
+        output_dir.mkdir(parents=True, exist_ok=True)
+        masks_csv = output_dir / f"{vid_id}_masks.csv"
         print(f"  Extracting masks → {masks_csv}")
         result = subprocess.run(
             [PYTHON, str(EXTRACT_SCRIPT), pt_path, str(masks_csv)],

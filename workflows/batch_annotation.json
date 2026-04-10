@@ -1,132 +1,99 @@
 {
   "id": "batch-annotation-step2",
-  "revision": 1,
-  "last_node_id": 62,
-  "last_link_id": 119,
+  "revision": 5,
+  "last_node_id": 66,
+  "last_link_id": 123,
   "nodes": [
     {
       "id": 62,
       "type": "SAM3WorkingDirSelector",
-      "pos": [-420, 50],
+      "pos": [-420, 200],
       "size": [360, 220],
       "flags": {},
       "order": 0,
       "mode": 0,
       "inputs": [],
       "outputs": [
-        {"localized_name": "video_path", "name": "video_path", "type": "STRING", "links": [116, 117]},
+        {"localized_name": "video_path", "name": "video_path", "type": "STRING", "links": [120, 117]},
         {"localized_name": "video_id",   "name": "video_id",   "type": "STRING", "links": [118]},
         {"localized_name": "csv_path",   "name": "csv_path",   "type": "STRING", "links": [119]},
         {"localized_name": "corrections_csv_path", "name": "corrections_csv_path", "type": "STRING", "links": null},
-        {"localized_name": "working_dir","name": "working_dir","type": "STRING", "links": null}
+        {"localized_name": "working_dir","name": "working_dir","type": "STRING",  "links": null}
       ],
       "properties": {
         "cnr_id": "comfyui-sam3",
         "Node name for S&R": "SAM3WorkingDirSelector"
       },
-      "widgets_values": ["", "", ""]
-    },
-    {
-      "id": 9,
-      "type": "LoadVideoPath",
-      "pos": [100, 200],
-      "size": [310, 310],
-      "flags": {},
-      "order": 1,
-      "mode": 0,
-      "inputs": [
-        {"localized_name": "video", "name": "video", "type": "STRING", "link": 116},
-        {"localized_name": "meta_batch", "name": "meta_batch", "shape": 7, "type": "VHS_BatchManager", "link": null},
-        {"localized_name": "vae", "name": "vae", "shape": 7, "type": "VAE", "link": null}
-      ],
-      "outputs": [
-        {"localized_name": "IMAGE", "name": "IMAGE", "type": "IMAGE", "links": [112, 113]},
-        {"localized_name": "frame_count", "name": "frame_count", "type": "INT", "links": null},
-        {"localized_name": "audio", "name": "audio", "type": "AUDIO", "links": null},
-        {"localized_name": "video_info", "name": "video_info", "type": "VHS_VIDEOINFO", "links": null}
-      ],
-      "properties": {
-        "cnr_id": "comfyui-videohelpersuite",
-        "Node name for S&R": "LoadVideoPath"
-      },
-      "widgets_values": {
-        "force_rate": 0,
-        "custom_width": 0,
-        "custom_height": 0,
-        "frame_load_cap": 0,
-        "skip_first_frames": 1,
-        "select_every_nth": 1
-      }
+      "widgets_values": ["", ""]
     },
     {
       "id": 60,
       "type": "SAM3AnimalPointCollector",
-      "pos": [520, 400],
+      "pos": [100, 100],
       "size": [700, 700],
       "flags": {},
-      "order": 2,
+      "order": 1,
       "mode": 0,
       "inputs": [
-        {"localized_name": "video_frames", "name": "video_frames", "shape": 7, "type": "IMAGE", "link": 112},
-        {"localized_name": "image", "name": "image", "shape": 7, "type": "IMAGE", "link": null},
-        {"localized_name": "mask_frames", "name": "mask_frames", "shape": 7, "type": "IMAGE", "link": null},
-        {"localized_name": "points_store", "name": "points_store", "type": "STRING", "widget": {"name": "points_store"}, "link": null},
-        {"localized_name": "coordinates", "name": "coordinates", "type": "STRING", "widget": {"name": "coordinates"}, "link": null},
+        {"localized_name": "video_frames",    "name": "video_frames",    "shape": 7, "type": "IMAGE",  "link": null},
+        {"localized_name": "image",           "name": "image",           "shape": 7, "type": "IMAGE",  "link": null},
+        {"localized_name": "mask_frames",     "name": "mask_frames",     "shape": 7, "type": "IMAGE",  "link": null},
+        {"localized_name": "points_store",    "name": "points_store",    "type": "STRING", "widget": {"name": "points_store"},    "link": null},
+        {"localized_name": "coordinates",     "name": "coordinates",     "type": "STRING", "widget": {"name": "coordinates"},     "link": null},
         {"localized_name": "neg_coordinates", "name": "neg_coordinates", "type": "STRING", "widget": {"name": "neg_coordinates"}, "link": null},
-        {"localized_name": "frame_idx", "name": "frame_idx", "type": "INT", "widget": {"name": "frame_idx"}, "link": null},
-        {"localized_name": "animal_id", "name": "animal_id", "type": "INT", "widget": {"name": "animal_id"}, "link": null},
-        {"localized_name": "mask_video_path", "name": "mask_video_path", "shape": 7, "type": "STRING", "widget": {"name": "mask_video_path"}, "link": null}
+        {"localized_name": "coordinates2",    "name": "coordinates2",    "type": "STRING", "widget": {"name": "coordinates2"},    "link": null},
+        {"localized_name": "frame_idx",       "name": "frame_idx",       "type": "INT",    "widget": {"name": "frame_idx"},       "link": null},
+        {"localized_name": "animal_id",       "name": "animal_id",       "type": "INT",    "widget": {"name": "animal_id"},       "link": null},
+        {"localized_name": "mask_video_path", "name": "mask_video_path", "shape": 7, "type": "STRING", "widget": {"name": "mask_video_path"}, "link": null},
+        {"localized_name": "video_path",      "name": "video_path",      "shape": 7, "type": "STRING", "widget": {"name": "video_path"},      "link": 120}
       ],
       "outputs": [
         {"localized_name": "positive_points", "name": "positive_points", "type": "SAM3_POINTS_PROMPT", "links": null},
         {"localized_name": "negative_points", "name": "negative_points", "type": "SAM3_POINTS_PROMPT", "links": null},
-        {"localized_name": "single_prompt", "name": "single_prompt", "type": "SAM3_SINGLE_PROMPT", "links": [114]}
+        {"localized_name": "mouse1_prompt",   "name": "mouse1_prompt",   "type": "SAM3_SINGLE_PROMPT", "links": [122]},
+        {"localized_name": "mouse2_prompt",   "name": "mouse2_prompt",   "type": "SAM3_SINGLE_PROMPT", "links": [123]}
       ],
       "properties": {
         "cnr_id": "comfyui-sam3",
         "Node name for S&R": "SAM3AnimalPointCollector"
       },
-      "widgets_values": ["{\"positive\":[],\"negative\":[]}", "[]", "[]", 0, 1, "", "", "", ""]
+      "widgets_values": ["{\"positive\":[],\"negative\":[]}", "[]", "[]", "[]", 0, 1, "", "", "", ""]
     },
     {
-      "id": 43,
-      "type": "SAM3TwoMouseTracking",
-      "pos": [520, 100],
-      "size": [285, 138],
+      "id": 66,
+      "type": "SAM3BuildPromptStore",
+      "pos": [870, 350],
+      "size": [280, 100],
       "flags": {},
-      "order": 3,
+      "order": 2,
       "mode": 0,
       "inputs": [
-        {"localized_name": "video_frames", "name": "video_frames", "shape": 7, "type": "IMAGE", "link": 113},
-        {"localized_name": "video", "name": "video", "shape": 7, "type": "VIDEO", "link": null},
-        {"localized_name": "new_prompt", "name": "new_prompt", "shape": 7, "type": "SAM3_SINGLE_PROMPT", "link": 114},
-        {"localized_name": "prompt_store", "name": "prompt_store", "type": "STRING", "widget": {"name": "prompt_store"}, "link": null},
-        {"localized_name": "score_threshold", "name": "score_threshold", "type": "FLOAT", "widget": {"name": "score_threshold"}, "link": null}
+        {"localized_name": "mouse1_prompt", "name": "mouse1_prompt", "type": "SAM3_SINGLE_PROMPT", "link": 122},
+        {"localized_name": "mouse2_prompt", "name": "mouse2_prompt", "type": "SAM3_SINGLE_PROMPT", "link": 123}
       ],
       "outputs": [
-        {"localized_name": "video_state", "name": "video_state", "type": "SAM3_VIDEO_STATE", "links": null},
         {"localized_name": "prompt_store", "name": "prompt_store", "type": "STRING", "links": [115]}
       ],
       "properties": {
         "cnr_id": "comfyui-sam3",
-        "Node name for S&R": "SAM3TwoMouseTracking"
+        "Node name for S&R": "SAM3BuildPromptStore"
       },
-      "widgets_values": ["[]", 0.3, ""]
+      "widgets_values": []
     },
     {
       "id": 61,
       "type": "SAM3WritePipelineCSV",
-      "pos": [880, 100],
+      "pos": [870, 520],
       "size": [340, 170],
       "flags": {},
-      "order": 4,
+      "order": 3,
       "mode": 0,
       "inputs": [
         {"localized_name": "prompt_store", "name": "prompt_store", "type": "STRING", "link": 115},
-        {"localized_name": "video_path", "name": "video_path", "type": "STRING", "link": 117},
-        {"localized_name": "video_id",   "name": "video_id",   "type": "STRING", "link": 118},
-        {"localized_name": "csv_path",   "name": "csv_path",   "type": "STRING", "link": 119},
-        {"localized_name": "gt_csv_path", "name": "gt_csv_path", "shape": 7, "type": "STRING", "widget": {"name": "gt_csv_path"}, "link": null}
+        {"localized_name": "video_path",   "name": "video_path",   "type": "STRING", "link": 117},
+        {"localized_name": "video_id",     "name": "video_id",     "type": "STRING", "link": 118},
+        {"localized_name": "csv_path",     "name": "csv_path",     "type": "STRING", "link": 119},
+        {"localized_name": "gt_csv_path",  "name": "gt_csv_path",  "shape": 7, "type": "STRING", "widget": {"name": "gt_csv_path"}, "link": null}
       ],
       "outputs": [
         {"localized_name": "csv_path", "name": "csv_path", "type": "STRING", "links": null}
@@ -139,21 +106,20 @@
     }
   ],
   "links": [
-    [112, 9,  0, 60, 0, "IMAGE"],
-    [113, 9,  0, 43, 0, "IMAGE"],
-    [114, 60, 2, 43, 2, "SAM3_SINGLE_PROMPT"],
-    [115, 43, 1, 61, 0, "STRING"],
-    [116, 62, 0,  9, 2, "STRING"],
+    [115, 66, 0, 61, 0, "STRING"],
     [117, 62, 0, 61, 1, "STRING"],
     [118, 62, 1, 61, 2, "STRING"],
-    [119, 62, 2, 61, 3, "STRING"]
+    [119, 62, 2, 61, 3, "STRING"],
+    [120, 62, 0, 60, 10, "STRING"],
+    [122, 60, 2, 66, 0, "SAM3_SINGLE_PROMPT"],
+    [123, 60, 3, 66, 1, "SAM3_SINGLE_PROMPT"]
   ],
   "groups": [],
   "config": {},
   "extra": {
     "ds": {"scale": 0.6, "offset": [0, 0]},
     "frontendVersion": "1.32.9",
-    "workflow_description": "Step 2 batch annotation: set working_dir, select folder/video, click one point per mouse on a well-separated frame, then queue. SAM3TwoMouseTracking accumulates the prompt, SAM3WritePipelineCSV writes coordinates to pipeline.csv with status=prompted."
+    "workflow_description": "Step 2 batch annotation: Queue once to load frame. Scrub slider freely. Left-click=Mouse1 (green), Right-click=Mouse2 (orange). Queue once to save to pipeline.csv."
   },
   "version": 0.4
 }

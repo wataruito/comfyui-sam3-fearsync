@@ -70,6 +70,8 @@ class SAM3AnimalPointCollector:
                 "points_store": ("STRING", {"multiline": False, "default": "{}"}),
                 "coordinates": ("STRING", {"multiline": False, "default": "[]"}),
                 "neg_coordinates": ("STRING", {"multiline": False, "default": "[]"}),
+                "coordinates2": ("STRING", {"multiline": False, "default": "[]",
+                    "tooltip": "Right-click points for animal 2 (obj_id=2) in two-animal annotation mode."}),
                 "frame_idx": ("INT", {
                     "default": 0, "min": 0,
                     "tooltip": "Frame to display and annotate. Synced with the video slider."
@@ -94,54 +96,84 @@ class SAM3AnimalPointCollector:
                     "multiline": False,
                     "tooltip": "Fallback: path to mask video file. Used only when mask_frames is not connected.",
                 }),
+                "video_path": ("STRING", {
+                    "default": "",
+                    "multiline": False,
+                    "tooltip": "Video file path for direct cv2 frame loading. When set, the slider fetches frames instantly without loading the entire video.",
+                }),
             },
             "hidden": {
                 "unique_id": "UNIQUE_ID",
             },
         }
 
-    RETURN_TYPES = ("SAM3_POINTS_PROMPT", "SAM3_POINTS_PROMPT", "SAM3_SINGLE_PROMPT")
-    RETURN_NAMES = ("positive_points", "negative_points", "single_prompt")
+    RETURN_TYPES = ("SAM3_POINTS_PROMPT", "SAM3_POINTS_PROMPT", "SAM3_SINGLE_PROMPT", "SAM3_SINGLE_PROMPT")
+    RETURN_NAMES = ("positive_points", "negative_points", "mouse1_prompt", "mouse2_prompt")
     FUNCTION = "collect_points"
     CATEGORY = "SAM3"
     OUTPUT_NODE = True  # Makes node executable even without outputs connected
 
     @classmethod
-    def IS_CHANGED(cls, points_store, coordinates, neg_coordinates,
+    def IS_CHANGED(cls, points_store, coordinates, neg_coordinates, coordinates2="[]",
                    frame_idx=0, animal_id=1, video_frames=None, image=None,
-                   mask_frames=None, mask_video_path=None, unique_id=None):
+                   mask_frames=None, mask_video_path=None, video_path=None,
+                   unique_id=None):
         h = hashlib.md5()
         h.update(coordinates.encode())
         h.update(neg_coordinates.encode())
+        h.update((coordinates2 or "[]").encode())
         h.update(str(frame_idx).encode())
         h.update(str(animal_id).encode())
         if video_frames is not None:
             h.update(str(video_frames.shape).encode())
         elif image is not None:
             h.update(str(image.shape).encode())
+        elif video_path:
+            h.update(video_path.encode())
         if mask_frames is not None:
             h.update(str(mask_frames.shape).encode())
         elif mask_video_path:
             h.update(mask_video_path.encode())
         return h.hexdigest()
 
-    def collect_points(self, points_store, coordinates, neg_coordinates,
+    def collect_points(self, points_store, coordinates, neg_coordinates, coordinates2="[]",
                        frame_idx=0, animal_id=1, video_frames=None, image=None,
-                       mask_frames=None, mask_video_path=None, unique_id=None):
+                       mask_frames=None, mask_video_path=None, video_path=None,
+                       unique_id=None):
+        import cv2 as _cv2
+
         # Select the display frame
+        total_frames_cv2 = None
         if video_frames is not None:
             idx = min(frame_idx, video_frames.shape[0] - 1)
             display = video_frames[idx:idx+1]   # [1, H, W, C]
         elif image is not None:
             display = image
+        elif video_path and video_path.strip():
+            vp = video_path.strip()
+            cap = _cv2.VideoCapture(vp)
+            if not cap.isOpened():
+                raise ValueError(f"[SAM3AnimalPointCollector] Cannot open video: {vp}")
+            total_frames_cv2 = int(cap.get(_cv2.CAP_PROP_FRAME_COUNT))
+            safe_idx = max(0, min(frame_idx, total_frames_cv2 - 1))
+            cap.set(_cv2.CAP_PROP_POS_FRAMES, safe_idx)
+            ret, frame = cap.read()
+            cap.release()
+            if not ret:
+                raise ValueError(f"[SAM3AnimalPointCollector] Cannot read frame {safe_idx} from {vp}")
+            frame_rgb = _cv2.cvtColor(frame, _cv2.COLOR_BGR2RGB)
+            import torch as _torch
+            display = _torch.from_numpy(frame_rgb).float() / 255.0
+            display = display.unsqueeze(0)  # [1, H, W, C]
         else:
-            raise ValueError("Either video_frames or image must be provided.")
+            raise ValueError("Either video_frames, image, or video_path must be provided.")
 
         # Cache key
         h = hashlib.md5()
         h.update(str(display.shape).encode())
         h.update(coordinates.encode())
         h.update(neg_coordinates.encode())
+        h.update((coordinates2 or "[]").encode())
         h.update(str(frame_idx).encode())
         h.update(str(animal_id).encode())
         if mask_frames is not None:
@@ -162,6 +194,7 @@ class SAM3AnimalPointCollector:
                 "fps":            ["4"],
                 "frame_idx":      [str(frame_idx)],
                 "has_mask_video": ["1" if has_mask else "0"],
+                "video_path":     [video_path.strip() if video_path and video_path.strip() else ""],
             }
 
         if cache_key in SAM3AnimalPointCollector._cache:
@@ -175,6 +208,8 @@ class SAM3AnimalPointCollector:
                 elif image is not None:
                     _POINT_COLLECTOR_FRAMES[str(unique_id)] = image
                     tf = image.shape[0]
+                elif total_frames_cv2 is not None:
+                    tf = total_frames_cv2
                 if mask_frames is not None:
                     _POINT_COLLECTOR_MASK_TENSORS[str(unique_id)] = mask_frames
                     _POINT_COLLECTOR_MASK_PATHS.pop(str(unique_id), None)
@@ -234,7 +269,24 @@ class SAM3AnimalPointCollector:
                 "img_height": img_height,
             }
 
-        result = (positive_points, negative_points, single_prompt)
+        # Build mouse2_prompt from right-click coordinates (coordinates2)
+        mouse2_prompt = None
+        try:
+            coords2 = json.loads(coordinates2) if coordinates2 and coordinates2.strip() else []
+        except json.JSONDecodeError:
+            coords2 = []
+        if coords2:
+            pts2_px = [[float(p['x']), float(p['y'])] for p in coords2]
+            mouse2_prompt = {
+                "frame_idx": frame_idx,
+                "obj_id":    2,
+                "points":    pts2_px,
+                "labels":    [1] * len(pts2_px),
+                "img_width":  img_width,
+                "img_height": img_height,
+            }
+
+        result = (positive_points, negative_points, single_prompt, mouse2_prompt)
         SAM3AnimalPointCollector._cache[cache_key] = result
 
         # Cache video frames for on-demand frame serving
@@ -246,6 +298,8 @@ class SAM3AnimalPointCollector:
             elif image is not None:
                 _POINT_COLLECTOR_FRAMES[str(unique_id)] = image
                 total_frames = image.shape[0]
+            elif total_frames_cv2 is not None:
+                total_frames = total_frames_cv2
             # Cache mask source (tensor takes priority over file path)
             if mask_frames is not None:
                 _POINT_COLLECTOR_MASK_TENSORS[str(unique_id)] = mask_frames
@@ -1101,6 +1155,38 @@ if _SERVER_AVAILABLE:
         except Exception as exc:
             log.exception("Interactive segmentation failed")
             return web.json_response({"error": str(exc)}, status=500)
+
+    @server.PromptServer.instance.routes.get("/sam3/get_video_frame")
+    async def _get_video_frame_direct_handler(request):
+        """Return a single video frame as JPEG via cv2 (no prior execution needed)."""
+        import cv2 as _cv2
+
+        video_path = request.rel_url.query.get("video_path", "")
+        frame_idx  = int(request.rel_url.query.get("frame_idx", 0))
+
+        if not video_path:
+            return web.Response(status=400, text="video_path is required")
+
+        cap = _cv2.VideoCapture(video_path)
+        if not cap.isOpened():
+            return web.Response(status=404, text=f"Cannot open: {video_path}")
+        try:
+            total = int(cap.get(_cv2.CAP_PROP_FRAME_COUNT))
+            safe_idx = max(0, min(frame_idx, total - 1))
+            cap.set(_cv2.CAP_PROP_POS_FRAMES, safe_idx)
+            ret, frame = cap.read()
+        finally:
+            cap.release()
+
+        if not ret:
+            return web.Response(status=500, text=f"Cannot read frame {frame_idx}")
+
+        frame_rgb = _cv2.cvtColor(frame, _cv2.COLOR_BGR2RGB)
+        pil_img   = Image.fromarray(frame_rgb)
+        buf = io.BytesIO()
+        pil_img.save(buf, format="JPEG", quality=80)
+        buf.seek(0)
+        return web.Response(body=buf.read(), content_type="image/jpeg")
 
     @server.PromptServer.instance.routes.post("/sam3/get_frame")
     async def _get_frame_handler(request):

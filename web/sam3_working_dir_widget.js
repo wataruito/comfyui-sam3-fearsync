@@ -1,9 +1,9 @@
 /**
  * SAM3 Working Dir Selector widget
  *
- * Replaces selected_folder / selected_video text widgets with dropdowns.
- * Queries /sam3/wd/list_folders and /sam3/wd/list_videos from the backend.
- * Shows computed video_path / video_id / csv_path as a read-only info panel.
+ * Reads pipeline.csv from working_dir and shows video_id values in a dropdown.
+ * Status is shown alongside each video_id (e.g. "20250718_f402cd  [new]").
+ * The annotator selects a video_id; the node resolves video_path server-side.
  */
 
 import { app } from "../../scripts/app.js";
@@ -22,18 +22,16 @@ app.registerExtension({
 
             const getW = name => node.widgets?.find(w => w.name === name);
 
-            // Hide selected_folder and selected_video text widgets
+            // Hide selected_video_id text widget
             setTimeout(() => {
-                for (const name of ["selected_folder", "selected_video"]) {
-                    const w = getW(name);
-                    if (!w) continue;
-                    w.draw = () => {};
-                    try {
-                        Object.defineProperty(w, "computedHeight", {
-                            get: () => 0, set: () => {}, configurable: true,
-                        });
-                    } catch (e) { w.computedHeight = 0; }
-                }
+                const w = getW("selected_video_id");
+                if (!w) return;
+                w.draw = () => {};
+                try {
+                    Object.defineProperty(w, "computedHeight", {
+                        get: () => 0, set: () => {}, configurable: true,
+                    });
+                } catch (e) { w.computedHeight = 0; }
                 node.setSize(node.computeSize());
                 node.setDirtyCanvas(true, true);
             }, 0);
@@ -44,7 +42,6 @@ app.registerExtension({
                 "display:flex;flex-direction:column;gap:3px;" +
                 "padding:4px 6px;box-sizing:border-box;width:100%;";
 
-            // Row helpers
             const makeRow = () => {
                 const r = document.createElement("div");
                 r.style.cssText = "display:flex;align-items:center;gap:4px;";
@@ -53,134 +50,101 @@ app.registerExtension({
             const makeLabel = text => {
                 const l = document.createElement("span");
                 l.style.cssText =
-                    "color:#999;font-size:10px;white-space:nowrap;width:48px;text-align:right;flex-shrink:0;";
+                    "color:#999;font-size:10px;white-space:nowrap;width:48px;" +
+                    "text-align:right;flex-shrink:0;";
                 l.textContent = text;
                 return l;
             };
-            const makeSelect = () => {
-                const s = document.createElement("select");
-                s.style.cssText =
-                    "flex:1;background:#2a2a2a;color:#ddd;border:1px solid #555;" +
-                    "border-radius:3px;padding:1px 4px;font-size:11px;min-width:0;";
-                return s;
-            };
 
-            // ── Folder row ─────────────────────────────────────────────────
-            const folderRow = makeRow();
-            folderRow.appendChild(makeLabel("Folder:"));
+            // ── Video row ──────────────────────────────────────────────────
+            const videoRow = makeRow();
+            videoRow.appendChild(makeLabel("Video:"));
 
-            const folderSel = makeSelect();
-            folderRow.appendChild(folderSel);
+            const videoSel = document.createElement("select");
+            videoSel.style.cssText =
+                "flex:1;background:#2a2a2a;color:#ddd;border:1px solid #555;" +
+                "border-radius:3px;padding:1px 4px;font-size:11px;min-width:0;";
+            videoRow.appendChild(videoSel);
 
             const refreshBtn = document.createElement("button");
             refreshBtn.textContent = "🔄";
-            refreshBtn.title = "Refresh (re-scan working_dir/video/)";
+            refreshBtn.title = "Refresh (re-read pipeline.csv)";
             refreshBtn.style.cssText =
                 "padding:1px 6px;background:#484848;color:#ddd;" +
                 "border:1px solid #666;border-radius:3px;cursor:pointer;" +
                 "font-size:11px;flex-shrink:0;";
             refreshBtn.onmouseover = () => refreshBtn.style.background = "#585858";
             refreshBtn.onmouseout  = () => refreshBtn.style.background = "#484848";
-            folderRow.appendChild(refreshBtn);
+            videoRow.appendChild(refreshBtn);
 
-            // ── Video row ──────────────────────────────────────────────────
-            const videoRow = makeRow();
-            videoRow.appendChild(makeLabel("Video:"));
-
-            const videoSel = makeSelect();
-            videoRow.appendChild(videoSel);
-
-            container.appendChild(folderRow);
             container.appendChild(videoRow);
 
-            // ── Logic ──────────────────────────────────────────────────────
-            const updateInfo = () => {
-                const wdW = getW("working_dir");
-                const wd = wdW?.value?.trim() || "";
-                const folder = folderSel.value;
-                const video  = videoSel.value;
-
-                // Sync hidden widgets so they are saved in the workflow JSON
-                const fw = getW("selected_folder");
-                const vw = getW("selected_video");
-                if (fw) fw.value = folder;
-                if (vw) vw.value = video;
-
-                if (!folder || !video) return;
+            // ── Status color map ───────────────────────────────────────────
+            const STATUS_COLOR = {
+                "new":       "#888",
+                "prompted":  "#4af",
+                "tracked":   "#8f8",
+                "corrected": "#fa4",
+                "done":      "#aaa",
             };
 
-            const populateSelect = (sel, items, preserve) => {
-                sel.innerHTML = "";
+            // ── Logic ──────────────────────────────────────────────────────
+            const updateHidden = () => {
+                const w = getW("selected_video_id");
+                if (w) w.value = videoSel.value;
+            };
+
+            const populateSelect = (videos, preserve) => {
+                videoSel.innerHTML = "";
                 const blank = document.createElement("option");
                 blank.value = "";
-                blank.textContent = `— select ${sel === folderSel ? "folder" : "video"} —`;
-                sel.appendChild(blank);
-                for (const item of items) {
+                blank.textContent = "— select video —";
+                videoSel.appendChild(blank);
+                for (const { video_id, status } of videos) {
                     const opt = document.createElement("option");
-                    opt.value = item;
-                    opt.textContent = item;
-                    sel.appendChild(opt);
+                    opt.value = video_id;
+                    opt.textContent = `${video_id}  [${status}]`;
+                    opt.style.color = STATUS_COLOR[status] || "#ddd";
+                    videoSel.appendChild(opt);
                 }
-                if (preserve && items.includes(preserve)) sel.value = preserve;
+                if (preserve && videos.some(v => v.video_id === preserve)) {
+                    videoSel.value = preserve;
+                }
+                updateHidden();
             };
 
-            const loadVideos = async (restoreVideo) => {
+            const loadVideos = async (restore) => {
                 const wdW = getW("working_dir");
                 const wd  = wdW?.value?.trim() || "";
-                const folder = folderSel.value;
-                if (!wd || !folder) {
-                    populateSelect(videoSel, [], "");
-                    updateInfo();
-                    return;
-                }
+                if (!wd) { populateSelect([], ""); return; }
                 try {
                     const resp = await fetch(
-                        `/sam3/wd/list_videos?working_dir=${encodeURIComponent(wd)}&folder=${encodeURIComponent(folder)}`
+                        `/sam3/wd/list_pipeline_videos?working_dir=${encodeURIComponent(wd)}`
                     );
                     const data = await resp.json();
-                    populateSelect(videoSel, data.videos || [], restoreVideo);
+                    populateSelect(data.videos || [], restore);
                 } catch (e) {
-                    console.error("[SAM3WorkingDir] list_videos:", e);
+                    console.error("[SAM3WorkingDir] list_pipeline_videos:", e);
                 }
-                updateInfo();
-            };
-
-            const loadFolders = async (restoreFolder, restoreVideo) => {
-                const wdW = getW("working_dir");
-                const wd  = wdW?.value?.trim() || "";
-                if (!wd) return;
-                try {
-                    const resp = await fetch(
-                        `/sam3/wd/list_folders?working_dir=${encodeURIComponent(wd)}`
-                    );
-                    const data = await resp.json();
-                    populateSelect(folderSel, data.folders || [], restoreFolder);
-                } catch (e) {
-                    console.error("[SAM3WorkingDir] list_folders:", e);
-                }
-                await loadVideos(restoreVideo);
             };
 
             // Events
             refreshBtn.addEventListener("click", async e => {
                 e.preventDefault(); e.stopPropagation();
-                await loadFolders(folderSel.value, videoSel.value);
+                await loadVideos(videoSel.value);
             });
+            videoSel.addEventListener("change", () => updateHidden());
 
-            folderSel.addEventListener("change", () => loadVideos());
-            videoSel.addEventListener("change", () => updateInfo());
-
-            // Register DOM widget (height: 2 rows × 26 + gaps)
+            // Register DOM widget (single row)
             const dw = node.addDOMWidget("wd_selector", "wdSelector", container);
-            dw.computeSize = w => [w, 62];
+            dw.computeSize = w => [w, 36];
 
-            // On load: restore saved selections
+            // On load: restore saved selection
             setTimeout(async () => {
                 const wdW = getW("working_dir");
                 if (!wdW?.value?.trim()) return;
-                const savedFolder = getW("selected_folder")?.value || "";
-                const savedVideo  = getW("selected_video")?.value  || "";
-                await loadFolders(savedFolder, savedVideo);
+                const savedId = getW("selected_video_id")?.value || "";
+                await loadVideos(savedId);
             }, 300);
 
             return result;

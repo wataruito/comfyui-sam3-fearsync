@@ -11,11 +11,11 @@ Usage:
   python extract_masks_from_propagation.py <path/to/sam3_result.pt> [output.csv]
 """
 
+import csv
 import sys
 import os
 import numpy as np
 import torch
-import pandas as pd
 
 
 def centroid(mask_2d):
@@ -52,23 +52,26 @@ def extract(pt_path, out_csv=None):
 
         rows.append(row)
 
-    df = pd.DataFrame(rows, columns=["frame", "s1x", "s1y", "s1area", "s2x", "s2y", "s2area"])
-
     if out_csv is None:
         base = os.path.splitext(os.path.basename(pt_path))[0]
         out_csv = os.path.join("analysis_output", f"{base}_masks.csv")
 
     os.makedirs(os.path.dirname(out_csv) or ".", exist_ok=True)
-    df.to_csv(out_csv, index=False)
-    print(f"Saved {len(df)} frames → {out_csv}")
+    fieldnames = ["frame", "s1x", "s1y", "s1area", "s2x", "s2y", "s2area"]
+    with open(out_csv, "w", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(rows)
+    print(f"Saved {len(rows)} frames → {out_csv}")
 
     # Quick summary
     for prefix, label in [("s1", "mouse1"), ("s2", "mouse2")]:
-        valid = df[f"{prefix}area"] > 0
-        print(f"  {label}: {valid.sum()}/{len(df)} frames with mask "
-              f"(area mean={df.loc[valid, f'{prefix}area'].mean():.0f} px)")
+        valid = [r for r in rows if r[f"{prefix}area"] > 0]
+        mean_area = sum(r[f"{prefix}area"] for r in valid) / len(valid) if valid else 0
+        print(f"  {label}: {len(valid)}/{len(rows)} frames with mask "
+              f"(area mean={mean_area:.0f} px)")
 
-    return df
+    return rows
 
 
 if __name__ == "__main__":

@@ -103,12 +103,15 @@ def generate_mask_video(pt_path: str, video_path: str, output_video_path: str,
         if not ret:
             break
         if frame_idx in masks:
-            mask_arr = masks[frame_idx]   # (num_objs, H, W)
+            mask_arr = masks[frame_idx]   # (num_objs, H_mask, W_mask)
             overlay = frame.copy()
             for ch, color in enumerate(colors):
                 if ch < mask_arr.shape[0]:
-                    m = mask_arr[ch].astype(bool)
-                    overlay[m] = color
+                    m = mask_arr[ch].astype(np.uint8)
+                    # Resize mask to video frame size if needed
+                    if m.shape != (height, width):
+                        m = cv2.resize(m, (width, height), interpolation=cv2.INTER_NEAREST)
+                    overlay[m.astype(bool)] = color
             frame = cv2.addWeighted(overlay, alpha, frame, 1 - alpha, 0)
         out.write(frame)
         frame_idx += 1

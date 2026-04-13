@@ -118,14 +118,14 @@ def main():
         missing = [b for b in bad if b["reason"] == "missing_mask"]
         jumps   = [b for b in bad if b["reason"] == "jump"]
         swaps   = [b for b in bad if b["reason"] == "id_swap"]
+        missing_frames = sorted(set(b["frame"] for b in missing))
 
         print(f"\n=== {video_id} ===")
-        print(f"  missing_mask: {len(missing)} frames  |  jump: {len(jumps)}  |  id_swap: {len(swaps)}")
+        print(f"  missing_mask: {len(missing_frames)} frames  |  jump: {len(jumps)}  |  id_swap: {len(swaps)}")
 
         if not args.summary:
-            if missing:
-                frames = sorted(set(b["frame"] for b in missing))
-                print(f"  MISSING  frames: {frames}")
+            if missing_frames:
+                print(f"  MISSING  frames: {missing_frames}")
             if jumps:
                 for b in jumps:
                     print(f"  JUMP     frame {b['frame']:4d}: {b['detail']}")

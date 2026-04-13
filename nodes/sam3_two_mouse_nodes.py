@@ -1072,8 +1072,8 @@ class SAM3WorkingDirSelector:
             },
         }
 
-    RETURN_TYPES = ("STRING", "STRING", "STRING", "STRING", "STRING", "STRING")
-    RETURN_NAMES = ("video_path", "video_id", "csv_path", "corrections_csv_path", "working_dir", "output_pt_path")
+    RETURN_TYPES = ("STRING", "STRING", "STRING", "STRING", "STRING", "STRING", "STRING")
+    RETURN_NAMES = ("video_path", "video_id", "csv_path", "corrections_csv_path", "working_dir", "output_pt_path", "masks_video_path")
     FUNCTION = "select"
     CATEGORY = "SAM3/batch"
 
@@ -1084,14 +1084,16 @@ class SAM3WorkingDirSelector:
         corrections_csv_path = str(wd / "corrections.csv")
         video_path = ""
         output_pt_path = ""
+        masks_video_path = ""
         if selected_video_id and (wd / "pipeline.csv").exists():
             with open(csv_path, newline="") as f:
                 for row in _csv.DictReader(f):
                     if row.get("video_id") == selected_video_id:
                         video_path = row.get("video_path", "")
                         output_pt_path = row.get("output_pt_path", "")
+                        masks_video_path = row.get("masks_video_path", "")
                         break
-        return (video_path, selected_video_id, csv_path, corrections_csv_path, str(wd), output_pt_path)
+        return (video_path, selected_video_id, csv_path, corrections_csv_path, str(wd), output_pt_path, masks_video_path)
 
 
 if _SERVER_AVAILABLE:

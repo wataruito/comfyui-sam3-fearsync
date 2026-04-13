@@ -45,7 +45,7 @@ POLL_TIMEOUT  = 3600  # max seconds to wait per job (1 hour)
 PIPELINE_HEADERS = [
     "video_id", "video_path", "status",
     "prompt_frame_idx", "mouse1_x", "mouse1_y", "mouse2_x", "mouse2_y",
-    "output_pt_path", "masks_csv_path",
+    "output_pt_path", "masks_csv_path", "masks_video_path",
 ]
 
 
@@ -61,6 +61,60 @@ def save_pipeline(csv_path: Path, rows: list[dict]):
         writer = csv.DictWriter(f, fieldnames=PIPELINE_HEADERS)
         writer.writeheader()
         writer.writerows(rows)
+
+
+# ---------------------------------------------------------------------------
+# Mask video generation
+# ---------------------------------------------------------------------------
+
+def generate_mask_video(pt_path: str, video_path: str, output_video_path: str,
+                        alpha: float = 0.5):
+    """
+    Render a color-overlay mask video from a .pt propagation file.
+
+    Color scheme (matches SAM3VideoOutput visualization):
+      ch0 / obj_id=1 → blue  (255, 0,   0) BGR
+      ch1 / obj_id=2 → red   (  0, 0, 255) BGR
+    """
+    import cv2
+    import torch
+    import numpy as np
+
+    data = torch.load(pt_path, map_location="cpu", weights_only=False)
+    masks = data["masks"]   # {frame_idx: ndarray(num_objs, H, W, dtype=bool)}
+
+    cap = cv2.VideoCapture(video_path)
+    fps    = cap.get(cv2.CAP_PROP_FPS) or 4.0
+    width  = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+
+    out = cv2.VideoWriter(
+        output_video_path,
+        cv2.VideoWriter_fourcc(*"mp4v"),
+        fps,
+        (width, height),
+    )
+
+    colors = [(255, 0, 0), (0, 0, 255)]   # blue for mouse1, red for mouse2
+
+    frame_idx = 0
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            break
+        if frame_idx in masks:
+            mask_arr = masks[frame_idx]   # (num_objs, H, W)
+            overlay = frame.copy()
+            for ch, color in enumerate(colors):
+                if ch < mask_arr.shape[0]:
+                    m = mask_arr[ch].astype(bool)
+                    overlay[m] = color
+            frame = cv2.addWeighted(overlay, alpha, frame, 1 - alpha, 0)
+        out.write(frame)
+        frame_idx += 1
+
+    cap.release()
+    out.release()
 
 
 # ---------------------------------------------------------------------------
@@ -176,7 +230,8 @@ def submit_prompt(comfyui_url: str, workflow: dict) -> str:
         json={"prompt": workflow, "prompt_id": prompt_id},
         timeout=30,
     )
-    resp.raise_for_status()
+    if not resp.ok:
+        raise RuntimeError(f"ComfyUI HTTP {resp.status_code}: {resp.text}")
     data = resp.json()
     if data.get("node_errors"):
         raise RuntimeError(f"ComfyUI node errors: {data['node_errors']}")
@@ -339,11 +394,23 @@ def main():
         else:
             print(result.stdout.strip())
 
+        # Generate mask overlay video
+        masks_video = output_dir / f"{vid_id}_masks.mp4"
+        print(f"  Generating mask video → {masks_video}")
+        try:
+            generate_mask_video(pt_path, vid_path, str(masks_video))
+            print(f"  Mask video saved → {masks_video}")
+            masks_video_path = str(masks_video)
+        except Exception as e:
+            print(f"  WARNING: mask video generation failed: {e}")
+            masks_video_path = ""
+
         # Update CSV
         for r in rows:
             if r["video_id"] == vid_id:
-                r["output_pt_path"] = pt_path
-                r["masks_csv_path"] = str(masks_csv)
+                r["output_pt_path"]   = pt_path
+                r["masks_csv_path"]   = str(masks_csv)
+                r["masks_video_path"] = masks_video_path
                 r["status"] = "tracked"
                 break
         save_pipeline(csv_path, rows)

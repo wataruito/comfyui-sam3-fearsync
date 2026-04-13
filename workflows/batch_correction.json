@@ -19,7 +19,8 @@
         {"localized_name": "csv_path",              "name": "csv_path",              "type": "STRING", "links": [127]},
         {"localized_name": "corrections_csv_path",  "name": "corrections_csv_path",  "type": "STRING", "links": [126]},
         {"localized_name": "working_dir",           "name": "working_dir",           "type": "STRING", "links": null},
-        {"localized_name": "output_pt_path",        "name": "output_pt_path",        "type": "STRING", "links": [128]}
+        {"localized_name": "output_pt_path",        "name": "output_pt_path",        "type": "STRING", "links": [128]},
+        {"localized_name": "masks_video_path",      "name": "masks_video_path",      "type": "STRING", "links": [129]}
       ],
       "properties": {
         "cnr_id": "comfyui-sam3",
@@ -45,7 +46,7 @@
         {"localized_name": "coordinates2",    "name": "coordinates2",    "type": "STRING", "widget": {"name": "coordinates2"},    "link": null},
         {"localized_name": "frame_idx",       "name": "frame_idx",       "type": "INT",    "widget": {"name": "frame_idx"},       "link": null},
         {"localized_name": "animal_id",       "name": "animal_id",       "type": "INT",    "widget": {"name": "animal_id"},       "link": null},
-        {"localized_name": "mask_video_path", "name": "mask_video_path", "shape": 7, "type": "STRING", "widget": {"name": "mask_video_path"}, "link": null},
+        {"localized_name": "mask_video_path", "name": "mask_video_path", "shape": 7, "type": "STRING", "widget": {"name": "mask_video_path"}, "link": 129},
         {"localized_name": "video_path",      "name": "video_path",      "shape": 7, "type": "STRING", "widget": {"name": "video_path"},      "link": 120}
       ],
       "outputs": [
@@ -167,7 +168,8 @@
     [125, 62, 1, 53, 1, "STRING"],
     [126, 62, 3, 53, 2, "STRING"],
     [127, 62, 2, 53, 3, "STRING"],
-    [128, 62, 5, 48, 0, "STRING"]
+    [128, 62, 5, 48, 0, "STRING"],
+    [129, 62, 6, 60, 9, "STRING"]
   ],
   "groups": [],
   "config": {},

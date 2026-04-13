@@ -859,7 +859,7 @@ class SAM3WritePipelineCSV:
         HEADERS = [
             "video_id", "video_path", "status",
             "prompt_frame_idx", "mouse1_x", "mouse1_y", "mouse2_x", "mouse2_y",
-            "output_pt_path", "masks_csv_path",
+            "output_pt_path", "masks_csv_path", "masks_video_path",
         ]
 
         try:
@@ -893,13 +893,15 @@ class SAM3WritePipelineCSV:
             "mouse2_y": m2y,
             "output_pt_path": "",
             "masks_csv_path": "",
+            "masks_video_path": "",
         }
 
         replaced = False
         for i, row in enumerate(rows):
             if row.get("video_id") == video_id:
-                new_row["output_pt_path"] = row.get("output_pt_path", "")
-                new_row["masks_csv_path"] = row.get("masks_csv_path", "")
+                new_row["output_pt_path"]   = row.get("output_pt_path", "")
+                new_row["masks_csv_path"]   = row.get("masks_csv_path", "")
+                new_row["masks_video_path"] = row.get("masks_video_path", "")
                 rows[i] = new_row
                 replaced = True
                 break
@@ -976,7 +978,7 @@ class SAM3WriteCorrectionsCSV:
         PIPE_HEADERS = [
             "video_id", "video_path", "gt_csv_path", "status",
             "prompt_frame_idx", "mouse1_x", "mouse1_y", "mouse2_x", "mouse2_y",
-            "output_pt_path", "masks_csv_path",
+            "output_pt_path", "masks_csv_path", "masks_video_path",
         ]
 
         try:

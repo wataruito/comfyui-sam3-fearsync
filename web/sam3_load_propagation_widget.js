@@ -60,6 +60,14 @@ app.registerExtension({
             row.appendChild(browseB);
 
             const updateLabel = () => {
+                // If save_path is connected via link, show indicator instead
+                const inp = this.inputs?.find(i => i.name === "save_path");
+                if (inp?.link != null) {
+                    label.textContent = "— from link —";
+                    label.title       = "";
+                    label.style.color = "#8b8";
+                    return;
+                }
                 const pw = this.widgets?.find(w => w.name === "save_path");
                 const v = pw?.value || "";
                 label.textContent = v ? v.split("/").pop() : "— no file selected —";
@@ -90,6 +98,14 @@ app.registerExtension({
             const dw = this.addDOMWidget("prop_browse", "propBrowse", row);
             dw.computeSize = w => [w, 26];
             setTimeout(updateLabel, 100);
+
+            // Update label when connections change
+            const onConnChanged = nodeType.prototype.onConnectionsChange;
+            this.onConnectionsChange = function(...args) {
+                onConnChanged?.apply(this, args);
+                setTimeout(updateLabel, 0);
+            };
+
             return result;
         };
     },

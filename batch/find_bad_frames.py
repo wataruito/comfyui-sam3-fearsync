@@ -21,7 +21,7 @@ def dist(x1, y1, x2, y2):
     return math.sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2)
 
 
-def find_bad_frames(masks_csv: Path, jump_thresh: float = 30.0) -> list[dict]:
+def find_bad_frames(masks_csv: Path, jump_thresh: float = 60.0) -> list[dict]:
     """
     Returns a list of dicts:
       {"frame": int, "reason": str, "detail": str}
@@ -88,8 +88,8 @@ def main():
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--csv",   help="pipeline.csv — process all tracked videos")
     group.add_argument("--masks", help="Single masks CSV file")
-    parser.add_argument("--jump-thresh", type=float, default=30.0,
-                        help="Pixel distance threshold for jump detection (default: 30)")
+    parser.add_argument("--jump-thresh", type=float, default=60.0,
+                        help="Pixel distance threshold for jump detection (default: 60)")
     parser.add_argument("--summary", action="store_true",
                         help="Print only summary counts, not individual frames")
     args = parser.parse_args()

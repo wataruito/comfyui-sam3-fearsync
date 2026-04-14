@@ -910,10 +910,13 @@ class SAM3WritePipelineCSV:
 
         csv_dir = os.path.dirname(os.path.abspath(csv_path))
         os.makedirs(csv_dir, exist_ok=True)
-        with open(csv_path, "w", newline="") as f:
+        # Write to a temp file first, then rename atomically to avoid truncation on error
+        tmp_path = csv_path + ".tmp"
+        with open(tmp_path, "w", newline="") as f:
             writer = csvmod.DictWriter(f, fieldnames=HEADERS)
             writer.writeheader()
             writer.writerows(rows)
+        os.replace(tmp_path, csv_path)
 
         log.info(f"[SAM3WritePipelineCSV] {csv_path}: video_id={video_id} status=prompted "
                  f"frame={frame_idx} m1=({m1x},{m1y}) m2=({m2x},{m2y})")
